@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -5,3 +6,10 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+=======
+import type { NextConfig } from "next"
+
+const nextConfig: NextConfig = {}
+
+export default nextConfig
+>>>>>>> e574ee2 (add shadcn ui)
