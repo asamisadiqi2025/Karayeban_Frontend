@@ -79,7 +79,7 @@ export default function Sidebar() {
   const isActive = (href: string) => pathname === href || pathname?.startsWith(href + "/");
 
   return (
-    <aside className="w-[280px] bg-white border-l border-gray-200 flex flex-col h-screen sticky top-0 z-30">
+    <aside className="w-[280px] bg-white border-l border-gray-200 flex flex-col h-[628px] sticky top-0 z-30 rounded-md shadow-md">
       {/* Logo */}
     <div className="h-[72px] px-6 flex items-center gap-3 border-b border-gray-100">
   <Image
@@ -169,12 +169,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-gray-100">
-        <div className="bg-indigo-50 rounded-xl p-4">
-          <p className="text-xs text-indigo-700 font-semibold mb-1">نسخه ۱.۰.۰</p>
-          <p className="text-xs text-gray-500">تمامی حقوق محفوظ است</p>
-        </div>
-      </div>
+ 
     </aside>
   );
 }

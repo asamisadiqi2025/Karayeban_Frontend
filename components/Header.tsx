@@ -19,7 +19,32 @@ export default function Header() {
 
   return (
     <header className="h-[72px] bg-white border-b border-gray-200 px-6 flex items-center justify-between">
-      {/* Right: User Profile */}
+
+          {/* Right: User Profile */}
+      
+      <div className="hidden md:block text-left">
+        <p className="text-sm font-bold text-gray-900">احمد؛ خوش آمدید</p>
+        <p className="text-xs text-gray-500">پنج شنبه، ۱۸ سرطان ۱۴۰۵</p>
+      </div>
+
+   
+
+      {/* Center: Search */}
+      <div className="flex-1 max-w-xl mx-8">
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="جستجوی پیشرفته..."
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 pr-10 pl-4 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-indigo-300 focus:bg-white focus:ring-3 focus:ring-indigo-100/50 transition-all search-focus"
+          />
+          <Search
+            size={16}
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+          />
+        </div>
+      </div>
+
+         {/* Left: Date & Welcome */}
       <div className="flex items-center gap-4">
         <div className="relative" ref={dropdownRef}>
           <button
@@ -30,7 +55,7 @@ export default function Header() {
               A
             </div>
             <div className="hidden sm:block text-right">
-              <p className="text-sm font-bold text-gray-900 leading-tight">نذیر احمد جان</p>
+              <p className="text-sm font-bold text-gray-900 leading-tight">احمد</p>
               <p className="text-xs text-gray-500 leading-tight">مهندس نرم‌افزار</p>
             </div>
             <ChevronDown
@@ -44,7 +69,7 @@ export default function Header() {
           {dropdownOpen && (
             <div className="absolute top-full right-0 mt-2 w-60 bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="px-4 py-3 border-b border-gray-100">
-                <p className="text-sm font-bold text-gray-900">نذیر احمد جان</p>
+                <p className="text-sm font-bold text-gray-900">احمد</p>
                 <p className="text-xs text-gray-500">خوش آمدید</p>
               </div>
               <a
@@ -79,27 +104,6 @@ export default function Header() {
           <Bell size={20} strokeWidth={2} />
           <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />
         </button>
-      </div>
-
-      {/* Center: Search */}
-      <div className="flex-1 max-w-xl mx-8">
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="جستجوی پیشرفته..."
-            className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 pr-10 pl-4 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-indigo-300 focus:bg-white focus:ring-3 focus:ring-indigo-100/50 transition-all search-focus"
-          />
-          <Search
-            size={16}
-            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400"
-          />
-        </div>
-      </div>
-
-      {/* Left: Date & Welcome */}
-      <div className="hidden md:block text-left">
-        <p className="text-sm font-bold text-gray-900">نذیر احمد جان؛ خوش آمدید</p>
-        <p className="text-xs text-gray-500">پنج شنبه، ۱۸ سرطان ۱۴۰۵</p>
       </div>
     </header>
   );

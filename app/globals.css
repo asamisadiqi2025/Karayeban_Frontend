@@ -1,77 +1,424 @@
-@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
+/* ==========================================================================
+   FONT — Kalameh
+   Kalameh is not on Google Fonts. Download the family (regular/medium/bold
+   weights) and place the files in /public/fonts, then this @font-face block
+   will pick them up. If you don't have the files yet, temporarily swap the
+   src for Vazirmatn (Google Fonts) which is visually close and RTL-ready.
+   ========================================================================== */
+@font-face {
+  font-family: "Kalameh";
+  src: url("/fonts/Kalameh-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Kalameh";
+  src: url("/fonts/Kalameh-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Kalameh";
+  src: url("/fonts/Kalameh-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
-  --font-vazir: "Vazirmatn", sans-serif;
-  --color-primary-50: #EEF2FF;
-  --color-primary-100: #E0E7FF;
-  --color-primary-200: #C7D2FE;
-  --color-primary-300: #A5B4FC;
-  --color-primary-400: #818CF8;
-  --color-primary-500: #6366F1;
-  --color-primary-600: #4F6EF7;
-  --color-primary-700: #4338CA;
-  --color-primary-800: #3730A3;
-  --color-primary-900: #312E81;
+  /* ---------- Font ---------- */
+  --font-kalameh: "Kalameh", "Vazirmatn", sans-serif;
+
+  /* ---------- Type scale (from design system) ---------- */
+  --text-h1: 3rem;      /* 48px */
+  --text-h1--line-height: 3.75rem;   /* 60px */
+  --text-h1--font-weight: 700;
+
+  --text-h2: 2.5rem;    /* 40px */
+  --text-h2--line-height: 3rem;      /* 48px */
+  --text-h2--font-weight: 700;
+
+  --text-h3: 2rem;      /* 32px */
+  --text-h3--line-height: 2.375rem;  /* 38px */
+  --text-h3--font-weight: 700;
+
+  --text-h4: 1.75rem;   /* 28px */
+  --text-h4--line-height: 2.125rem;  /* 34px */
+  --text-h4--font-weight: 700;
+
+  --text-h5: 1.5rem;    /* 24px */
+  --text-h5--line-height: 1.625rem;  /* 26px */
+  --text-h5--font-weight: 700;
+
+  --text-h6: 1.125rem;  /* 18px */
+  --text-h6--line-height: 1.5rem;    /* 24px */
+  --text-h6--font-weight: 700;
+
+  --text-b1: 1rem;      /* 16px */
+  --text-b1--line-height: 1.5rem;    /* 24px */
+  --text-b1--font-weight: 400;
+
+  --text-b1-2: 1rem;    /* 16px */
+  --text-b1-2--line-height: 1.5rem;  /* 24px */
+  --text-b1-2--font-weight: 500;
+
+  --text-b2: 0.875rem;  /* 14px */
+  --text-b2--line-height: 1.25rem;   /* 20px */
+  --text-b2--font-weight: 400;
+
+  --text-b2-2: 0.875rem;/* 14px */
+  --text-b2-2--line-height: 1.25rem; /* 20px */
+  --text-b2-2--font-weight: 500;
+
+  /* Button typography */
+  --text-btn-lg: 1rem;       /* 16px */
+  --text-btn-lg--line-height: 1.25rem; /* 20px */
+  --text-btn-lg--font-weight: 500;
+
+  --text-btn-md: 0.875rem;   /* 14px */
+  --text-btn-md--line-height: 1rem;    /* 16px */
+  --text-btn-md--font-weight: 500;
+
+  --text-btn-sm: 0.75rem;    /* 12px */
+  --text-btn-sm--line-height: 1rem;    /* 16px */
+  --text-btn-sm--font-weight: 500;
+
+  /* ---------- Radius (Figma "Radius" frame) ---------- */
+  --radius-rounded: 4px;
+  --radius-rounded-sm: 8px;
+  --radius-rounded-md: 10px;
+  --radius-rounded-lg: 16px;
+  --radius-rounded-xl: 24px;
+  --radius-rounded-2xl: 32px;
+  --radius-rounded-3xl: 40px;
+  --radius-rounded-4xl: 48px;
+  --radius-rounded-full: 9999px;
+
+  /* ---------- Shadow (Figma "Shadow" frame, all drop shadows on --color-black-*) ---------- */
+  --shadow-shadow:    0px 4px 12px 0px var(--color-black-100);
+  --shadow-shadow-sm: 0px 4px 12px 0px var(--color-black-200);
+  --shadow-shadow-md: 0px 6px 16px 0px var(--color-black-200);
+  --shadow-shadow-lg: 0px 8px 24px 0px var(--color-black-200);
+  --shadow-shadow-xl: 0px 8px 30px 0px var(--color-black-300);
+  --shadow-shadow-2xl: 0px 15px 36px 0px var(--color-black-300);
+  --shadow-shadow-3xl: 0px 16px 40px 0px var(--color-black-300);
+
+  /* ---------- 4px Spacing System (Figma "Spacing" frame) ---------- */
+  --spacing-0-5: 2px;
+  --spacing-1: 4px;
+  --spacing-1-5: 6px;
+  --spacing-2: 8px;
+  --spacing-2-5: 10px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-7: 28px;
+  --spacing-8: 32px;
+  --spacing-9: 36px;
+  --spacing-10: 40px;
+
+  /* ---------- Colors ----------
+     Pulled directly from the Figma file's color variables
+     (fileKey k3LnQRc5xTpQLKd6IWE4wD, "Colors" frame) — exact values, not estimated. */
+
+  /* Primary — Blue Ribbon */
+  --color-primary-950: #0022D1;
+  --color-primary-900: #0026ED;
+  --color-primary-800: #0A32FF;
+  --color-primary-700: #2649FF;
+  --color-primary-600: #4261FF;
+  --color-primary-500: #526EFF;
+  --color-primary-300: #96A7FF;
+  --color-primary-200: #B3BFFF;
+  --color-primary-100: #CFD6FF;
+  --color-primary-50:  #EBEEFF;
+
+  /* Secondary — Candy Corn */
+  --color-secondary-950: #998000;
+  --color-secondary-900: #BB9C00;
+  --color-secondary-800: #DCB900;
+  --color-secondary-700: #FED500;
+  --color-secondary-600: #FFDB21;
+  --color-secondary-500: #FFE352;
+  --color-secondary-300: #FFEB86;
+  --color-secondary-200: #FFF1A7;
+  --color-secondary-100: #FFF6C9;
+  --color-secondary-50:  #FFFCEB;
+
+  /* State */
+  --color-state-950: #5E6173;
+  --color-state-900: #6B6F82;
+  --color-state-800: #787C91;
+  --color-state-700: #888B9D;
+  --color-state-600: #979AAA;
+  --color-state-500: #A0A3B1;
+  --color-state-300: #C5C7D0;
+  --color-state-200: #D5D6DD;
+  --color-state-100: #E4E5E9;
+  --color-state-50:  #F4F4F6;
+
+  /* Gray */
+  --color-gray-950: #1F1F1F;
+  --color-gray-900: #343434;
+  --color-gray-800: #494949;
+  --color-gray-700: #5F5F5F;
+  --color-gray-600: #747474;
+  --color-gray-500: #8A8A8A;
+  --color-gray-300: #B5B5B5;
+  --color-gray-200: #CACACA;
+  --color-gray-100: #DFDFDF;
+  --color-gray-50:  #F5F5F5;
+
+  /* Info */
+  --color-info-950: #00243D;
+  --color-info-900: #003D68;
+  --color-info-800: #005693;
+  --color-info-700: #006FBE;
+  --color-info-600: #0088E9;
+  --color-info-500: #0095FF;
+  --color-info-300: #6AC1FF;
+  --color-info-200: #95D3FF;
+  --color-info-100: #C0E5FF;
+  --color-info-50:  #EBF7FF;
+
+  /* Success */
+  --color-success-950: #0E2513;
+  --color-success-900: #184322;
+  --color-success-800: #256634;
+  --color-success-700: #318644;
+  --color-success-600: #3DA654;
+  --color-success-500: #43B75D;
+  --color-success-300: #90D6A0;
+  --color-success-200: #B0E2BB;
+  --color-success-100: #D0EED7;
+  --color-success-50:  #F0FAF2;
+
+  /* Warning */
+  --color-warning-950: #3D2900;
+  --color-warning-900: #684500;
+  --color-warning-800: #9E741E;
+  --color-warning-700: #BE7E00;
+  --color-warning-600: #E99B00;
+  --color-warning-500: #FFAA00;
+  --color-warning-300: #FFCD6A;
+  --color-warning-200: #FFDC95;
+  --color-warning-100: #FFEAC0;
+  --color-warning-50:  #FFF8EB;
+
+  /* Danger */
+  --color-danger-950: #460806;
+  --color-danger-900: #6C0C0A;
+  --color-danger-800: #92110D;
+  --color-danger-700: #B81510;
+  --color-danger-600: #DE1914;
+  --color-danger-500: #EE443F;
+  --color-danger-300: #F37E7A;
+  --color-danger-200: #F7A3A0;
+  --color-danger-100: #FAC8C6;
+  --color-danger-50:  #FDEDEC;
+
+  /* Black — alpha overlays on a #222222 base (Figma stores these as opacity variants) */
+  --color-black-950: #222222;
+  --color-black-900: rgb(34 34 34 / 0.9);
+  --color-black-800: rgb(34 34 34 / 0.8);
+  --color-black-700: rgb(34 34 34 / 0.7);
+  --color-black-600: rgb(34 34 34 / 0.6);
+  --color-black-500: rgb(34 34 34 / 0.5);
+  --color-black-300: rgb(34 34 34 / 0.4);
+  --color-black-200: rgb(34 34 34 / 0.3);
+  --color-black-100: rgb(34 34 34 / 0.2);
+  --color-black-50:  rgb(34 34 34 / 0.1);
+
+  /* White — alpha overlays on a #FAFAFA base (Figma stores these as opacity variants) */
+  --color-white-950: #FAFAFA;
+  --color-white-900: rgb(250 250 250 / 0.9);
+  --color-white-800: rgb(250 250 250 / 0.8);
+  --color-white-700: rgb(250 250 250 / 0.7);
+  --color-white-600: rgb(250 250 250 / 0.6);
+  --color-white-500: rgb(250 250 250 / 0.5);
+  --color-white-300: rgb(250 250 250 / 0.4);
+  --color-white-200: rgb(250 250 250 / 0.3);
+  --color-white-100: rgb(250 250 250 / 0.2);
+  --color-white-50:  rgb(250 250 250 / 0.1);
 }
 
 @layer base {
   html {
     scroll-behavior: smooth;
   }
-  
+
   body {
-    font-family: var(--font-vazir);
-    background-color: #F3F4F6;
-    color: #1F2937;
+    font-family: var(--font-kalameh);
+    background-color: var(--color-gray-50);
+    color: var(--color-gray-950);
     -webkit-font-smoothing: antialiased;
   }
 }
 
 @layer components {
-  .btn-primary {
-    background: linear-gradient(135deg, #4F6EF7 0%, #6366F1 100%);
-    color: white;
-    padding: 0.625rem 1.25rem;
-    border-radius: 0.75rem;
-    font-weight: 500;
-    display: flex;
+  /* ---- Headings (map design system H1–H6 to real tags) ---- */
+  h1 { font-size: var(--text-h1); line-height: var(--text-h1--line-height); font-weight: var(--text-h1--font-weight); }
+  h2 { font-size: var(--text-h2); line-height: var(--text-h2--line-height); font-weight: var(--text-h2--font-weight); }
+  h3 { font-size: var(--text-h3); line-height: var(--text-h3--line-height); font-weight: var(--text-h3--font-weight); }
+  h4 { font-size: var(--text-h4); line-height: var(--text-h4--line-height); font-weight: var(--text-h4--font-weight); }
+  h5 { font-size: var(--text-h5); line-height: var(--text-h5--line-height); font-weight: var(--text-h5--font-weight); }
+  h6 { font-size: var(--text-h6); line-height: var(--text-h6--line-height); font-weight: var(--text-h6--font-weight); }
+
+  /* ---- Body text utility classes ---- */
+  .text-body-1    { font-size: var(--text-b1);   line-height: var(--text-b1--line-height);   font-weight: var(--text-b1--font-weight); }
+  .text-body-1-2  { font-size: var(--text-b1-2); line-height: var(--text-b1-2--line-height); font-weight: var(--text-b1-2--font-weight); }
+  .text-body-2    { font-size: var(--text-b2);   line-height: var(--text-b2--line-height);   font-weight: var(--text-b2--font-weight); }
+  .text-body-2-2  { font-size: var(--text-b2-2); line-height: var(--text-b2-2--line-height); font-weight: var(--text-b2-2--font-weight); }
+
+  /* ====================================================================
+     Buttons — 4 types × 3 sizes, states pulled directly from Figma
+     (fileKey k3LnQRc5xTpQLKd6IWE4wD, "Button" frame, node 17:1095).
+     Usage: <button class="btn btn-filled btn-lg">...</button>
+     Types: btn-filled | btn-secondary | btn-outline | btn-ghost
+     Sizes: btn-lg | btn-md | btn-sm  (default btn-lg if omitted)
+     ==================================================================== */
+  .btn {
+    display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    transition: all 0.2s;
+    justify-content: center;
+    gap: var(--spacing-2);
+    border-radius: var(--radius-rounded-sm);
+    font-family: var(--font-kalameh);
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
   }
-  
-  .btn-primary:hover {
-    background: linear-gradient(135deg, #4338CA 0%, #4F6EF7 100%);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+  .btn:disabled,
+  .btn[aria-disabled="true"] {
+    cursor: not-allowed;
   }
-  
+  .btn svg,
+  .btn img {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  /* Sizes */
+  .btn,
+  .btn-lg {
+    height: 44px;
+    padding: var(--spacing-3) var(--spacing-4);
+    font-size: var(--text-btn-lg);
+    line-height: var(--text-btn-lg--line-height);
+  }
+  .btn-md {
+    height: 40px;
+    padding: var(--spacing-3) var(--spacing-4);
+    font-size: var(--text-btn-md);
+    line-height: var(--text-btn-md--line-height);
+  }
+  .btn-sm {
+    height: 32px;
+    padding: var(--spacing-3) var(--spacing-4);
+    font-size: var(--text-btn-sm);
+    line-height: var(--text-btn-sm--line-height);
+  }
+
+  /* Type: Filled */
+  .btn-filled {
+    background-color: var(--color-primary-500);
+    color: var(--color-white-950);
+  }
+  .btn-filled:hover { background-color: var(--color-primary-300); }
+  .btn-filled:focus-visible {
+    border: 3px solid var(--color-primary-100);
+    padding-inline: calc(var(--spacing-4) - 3px);
+    padding-block: calc(var(--spacing-3) - 3px);
+  }
+  .btn-filled:disabled {
+    background-color: var(--color-primary-100);
+    color: var(--color-white-950);
+  }
+
+  /* Type: Secondary */
+  .btn-secondary {
+    background-color: var(--color-state-50);
+    color: var(--color-primary-500);
+  }
+  .btn-secondary:hover { background-color: var(--color-state-100); }
+  .btn-secondary:focus-visible {
+    border: 3px solid var(--color-primary-100);
+    padding-inline: calc(var(--spacing-4) - 3px);
+    padding-block: calc(var(--spacing-3) - 3px);
+  }
+  .btn-secondary:disabled {
+    background-color: var(--color-state-50);
+    color: var(--color-primary-200);
+  }
+
+  /* Type: Outline */
+  .btn-outline {
+    background-color: transparent;
+    border: 1px solid var(--color-primary-200);
+    color: var(--color-primary-500);
+    padding-inline: calc(var(--spacing-4) - 1px);
+    padding-block: calc(var(--spacing-3) - 1px);
+  }
+  .btn-outline:hover {
+    background-color: var(--color-state-50);
+    border-color: var(--color-primary-200);
+  }
+  .btn-outline:focus-visible {
+    border: 3px solid var(--color-primary-100);
+    padding-inline: calc(var(--spacing-4) - 3px);
+    padding-block: calc(var(--spacing-3) - 3px);
+  }
+  .btn-outline:disabled {
+    border-color: var(--color-state-200);
+    color: var(--color-primary-200);
+  }
+
+  /* Type: Ghost */
+  .btn-ghost {
+    background-color: transparent;
+    color: var(--color-primary-500);
+  }
+  .btn-ghost:hover { background-color: var(--color-state-50); }
+  .btn-ghost:focus-visible {
+    border: 3px solid var(--color-primary-100);
+    padding-inline: calc(var(--spacing-4) - 3px);
+    padding-block: calc(var(--spacing-3) - 3px);
+  }
+  .btn-ghost:disabled { color: var(--color-primary-200); }
+
   .card-shadow {
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.03);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.05), 0 4px 12px rgb(0 0 0 / 0.03);
   }
-  
+
+  /* ---- Sidebar ---- */
   .sidebar-item {
     display: flex;
     align-items: center;
     gap: 0.75rem;
     padding: 0.75rem 1rem;
     border-radius: 0.75rem;
-    color: #4B5563;
+    color: var(--color-gray-700);
     transition: all 0.2s;
     cursor: pointer;
     width: 100%;
   }
-  
+
   .sidebar-item:hover {
-    background-color: #EEF2FF;
-    color: #111827;
+    background-color: var(--color-primary-50);
+    color: var(--color-gray-950);
   }
-  
+
   .sidebar-item.active {
-    background-color: #EEF2FF;
-    color: #4F46E5;
+    background-color: var(--color-primary-50);
+    color: var(--color-primary-900);
     font-weight: 500;
-    border-right: 3px solid #4F46E5;
+    border-right: 3px solid var(--color-primary-900);
   }
 }
