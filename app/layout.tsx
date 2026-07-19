@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -19,15 +20,22 @@ export const metadata: Metadata = {
 };
 =======
 import { Geist, Geist_Mono, Inter, Figtree } from "next/font/google"
+=======
+// import { Geist, Geist_Mono, Inter, Figtree } from "next/font/google"
+
+import Header from "@/components/Header";
+import Sidebar from "@/components/Sidebar";
+>>>>>>> 3455d67 (add sidebar)
 
 import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
-import { cn } from "@/lib/utils";
+// import { ThemeProvider } from "@/components/theme-provider"
+// import { cn } from "@/lib/utils";
 
-const figtreeHeading = Figtree({subsets:['latin'],variable:'--font-heading'});
+// const figtreeHeading = Figtree({subsets:['latin'],variable:'--font-heading'});
 
-const inter = Inter({subsets:['latin'],variable:'--font-sans'})
+// const inter = Inter({subsets:['latin'],variable:'--font-sans'})
 
+<<<<<<< HEAD
 const fontMono = Geist_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
@@ -56,10 +64,50 @@ export default function RootLayout({
       suppressHydrationWarning
       className={cn("antialiased", fontMono.variable, "font-sans", inter.variable, figtreeHeading.variable)}
     >
+=======
+// const fontMono = Geist_Mono({
+//   subsets: ["latin"],
+//   variable: "--font-mono",
+// })
+
+// export default function RootLayout({
+//   children,
+// }: Readonly<{
+//   children: React.ReactNode
+// }>) {
+//   return (
+//     <html
+//       lang="en"
+//       suppressHydrationWarning
+//       className={cn("antialiased", fontMono.variable, "font-sans", inter.variable, figtreeHeading.variable)}
+//     >
+//       <body>
+//         <ThemeProvider>{children}</ThemeProvider>
+//       </body>
+//     </html>
+//   )
+// }
+
+// app/layout.tsx
+export default function RootLayout({ children }) {
+  return (
+    <html lang="fa" dir="rtl">
+>>>>>>> 3455d67 (add sidebar)
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <div className="flex h-screen">
+          <Sidebar />          ← Persistent (همیشه ثابت)
+          <div className="flex-1 flex flex-col">
+            <Header />         ← Persistent (همیشه ثابت)
+            <main>{children}</main>  ← Changes per route
+          </div>
+        </div>
       </body>
     </html>
+<<<<<<< HEAD
   )
 >>>>>>> e574ee2 (add shadcn ui)
 }
+=======
+  );
+}
+>>>>>>> 3455d67 (add sidebar)
