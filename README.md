@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
@@ -58,4 +58,4 @@ To use the components in your app, import them as follows:
 ```tsx
 import { Button } from "@/components/ui/button";
 ```
->>>>>>> e574ee2 (add shadcn ui)
+
