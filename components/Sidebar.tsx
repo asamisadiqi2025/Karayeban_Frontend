@@ -88,9 +88,9 @@ export default function Sidebar(): JSX.Element {
     pathname === href || Boolean(pathname?.startsWith(href + "/"));
 
   return (
-    <aside className="w-[280px] bg-card border-l border-border flex flex-col h-[628px] sticky top-0 z-30 rounded-md shadow">
+    <aside className="w-64 bg-card border-l border-border flex flex-col h-[628px] sticky top-0 z-30 rounded-md shadow">
       {/* Logo */}
-      <div className="h-[72px] px-6 flex items-center gap-3 border-b border-border">
+      <div className="h-12 px-6 flex items-center gap-3 border-b border-border">
         <Image
           src={karayebanLogo}
           alt="karyeban logo"
