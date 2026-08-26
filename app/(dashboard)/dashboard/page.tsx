@@ -1,7 +1,7 @@
-import Image from "next/image"
-import karayebanLogo from "@/public/noproperty.svg"
+import Image from "next/image";
+import karayebanLogo from "@/public/noproperty.svg";
 
-const page = () => {
+export default function DashboardPage() {
   return (
     <div className="flex h-[72px] items-center gap-3 border-b border-gray-100 px-6">
       <Image
@@ -13,7 +13,5 @@ const page = () => {
         priority
       />
     </div>
-  )
+  );
 }
-
-export default page
