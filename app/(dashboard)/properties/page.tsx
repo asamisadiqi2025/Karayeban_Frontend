@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import { Plus, Building2, Trash2, Edit, Layers, DoorOpen } from "lucide-react";
-import Header from "@/components/Header";
-import Sidebar from "@/components/Sidebar";
 
 interface Property {
   id: number;
@@ -46,11 +44,7 @@ export default function PropertiesPage() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
-        <main className="flex-1 overflow-y-auto p-6">
+    <>
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 mb-1">مدیریت املاک</h1>
@@ -124,8 +118,6 @@ export default function PropertiesPage() {
               ))}
             </div>
           )}
-        </main>
-      </div>
 
       {/* Modal */}
       {modalOpen && (
@@ -181,6 +173,6 @@ export default function PropertiesPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
