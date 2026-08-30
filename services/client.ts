@@ -63,12 +63,18 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as RetryableConfig | undefined;
 
+    // این مسیرها خودشان بخشی از جریان احراز هویت‌اند؛ ۴۰۱ روی آن‌ها یعنی
+    // «کاربر لاگین نیست»، نه «توکن وسط کار منقضی شد» — پس نباید ریفرش/ریدایرکت شود.
+    const isAuthFlowRequest =
+      originalRequest?.url?.includes("/auth/refresh") ||
+      originalRequest?.url?.includes("/auth/login") ||
+      originalRequest?.url?.includes("/auth/me");
+
     if (
       error.response?.status === 401 &&
       originalRequest &&
       !originalRequest._retry &&
-      !originalRequest.url?.includes("/auth/refresh") &&
-      !originalRequest.url?.includes("/auth/login")
+      !isAuthFlowRequest
     ) {
       originalRequest._retry = true;
 
@@ -86,7 +92,11 @@ apiClient.interceptors.response.use(
       }
 
       clearAuth();
-      if (typeof window !== "undefined") {
+      // اگر همین حالا روی صفحه‌ی لاگین هستیم، ریدایرکت دوباره = حلقه‌ی بی‌نهایت
+      if (
+        typeof window !== "undefined" &&
+        window.location.pathname !== "/login"
+      ) {
         window.location.href = "/login";
       }
     }

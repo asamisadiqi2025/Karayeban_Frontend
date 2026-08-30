@@ -19,7 +19,11 @@ import {
   type LoginPayload,
   type RegisterPayload,
 } from "@/services/auth.service";
-import { clearAuth } from "@/lib/client/auth/token-storage";
+import {
+  clearAuth,
+  getAccessToken,
+  getRefreshToken,
+} from "@/lib/client/auth/token-storage";
 import { extractApiErrorMessage } from "@/services/client";
 
 interface AuthContextValue {
@@ -41,9 +45,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
 
-  // موقع لود اولیه‌ی اپ، با تکیه بر کوکی refresh token سعی می‌کنیم نشست قبلی را بازیابی کنیم
+  // موقع لود اولیه‌ی اپ، اگر توکنی ذخیره شده باشد نشست قبلی را بازیابی می‌کنیم.
+  // بدون توکن اصلاً /auth/me صدا زده نمی‌شود تا از حلقه‌ی ۴۰۱ → ریدایرکت جلوگیری شود.
   useEffect(() => {
     let cancelled = false;
+
+    if (!getAccessToken() && !getRefreshToken()) {
+      setIsLoading(false);
+      return;
+    }
 
     fetchMe()
       .then((currentUser) => {
