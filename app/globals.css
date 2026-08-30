@@ -1,29 +1,24 @@
 @import "tailwindcss";
 
-/* ==========================================================================
-   FONT — Kalameh
-   Kalameh is not on Google Fonts. Download the family (regular/medium/bold
-   weights) and place the files in /public/fonts, then this @font-face block
-   will pick them up. If you don't have the files yet, temporarily swap the
-   src for Vazirmatn (Google Fonts) which is visually close and RTL-ready.
-   ========================================================================== */
 @font-face {
-  font-family: "Kalameh";
-  src: url("/fonts/Kalameh-Regular.woff2") format("woff2");
+  font-family: "Vazirmatn";
+  src: url("/fonts/Vazirmatn-Regular.woff2") format("woff2");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
+
 @font-face {
-  font-family: "Kalameh";
-  src: url("/fonts/Kalameh-Medium.woff2") format("woff2");
+  font-family: "Vazirmatn";
+  src: url("/fonts/Vazirmatn-Medium.woff2") format("woff2");
   font-weight: 500;
   font-style: normal;
   font-display: swap;
 }
+
 @font-face {
-  font-family: "Kalameh";
-  src: url("/fonts/Kalameh-Bold.woff2") format("woff2");
+  font-family: "Vazirmatn";
+  src: url("/fonts/Vazirmatn-Bold.woff2") format("woff2");
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -97,7 +92,7 @@
 
 @theme {
   /* ---------- Font ---------- */
-  --font-kalameh: "Kalameh", "Vazirmatn", sans-serif;
+  --font-kalameh: "Vazirmatn", sans-serif;
 
   /* ---------- Type scale (from Figma "Typography" frame) ---------- */
   --text-h1: 3rem;      /* 48px */
