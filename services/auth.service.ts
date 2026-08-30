@@ -63,7 +63,7 @@ export async function loginRequest(payload: LoginPayload): Promise<{ user: AuthU
   const tokens = normalizeTokenResponse(data);
 
   if (!tokens.accessToken) {
-    console.warn("⚠️ accessToken در پاسخ لاگین پیدا نشد. پاسخ خام:", data);
+    throw new Error("سرور توکن دسترسی را برنگرداند");
   }
 
   setAccessToken(tokens.accessToken);
@@ -77,6 +77,10 @@ export async function loginRequest(payload: LoginPayload): Promise<{ user: AuthU
 export async function registerRequest(payload: RegisterPayload): Promise<{ user: AuthUser }> {
   const { data } = await apiClient.post("/auth/register", payload);
   const tokens = normalizeTokenResponse(data);
+
+  if (!tokens.accessToken) {
+    throw new Error("سرور توکن دسترسی را برنگرداند");
+  }
 
   setAccessToken(tokens.accessToken);
   setRefreshToken(tokens.refreshToken);

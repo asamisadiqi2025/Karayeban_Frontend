@@ -352,8 +352,12 @@ export default function GaleriaContractPage() {
         </div>
       </div>
 
-      {/* استایل مخصوص چاپ: فقط سند چاپ شود، نه فورم و نه بقیه‌ی صفحه */}
+      {/* استایل مخصوص چاپ: فقط سند در یک صفحه چاپ شود */}
       <style jsx global>{`
+        @page {
+          size: A4;
+          margin: 10mm 12mm;
+        }
         @media print {
           body * {
             visibility: hidden;
@@ -363,11 +367,112 @@ export default function GaleriaContractPage() {
             visibility: visible;
           }
           .print-area {
-            position: absolute;
-            inset: 0;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            overflow: hidden;
+          }
+          .print-area > div {
+            width: 100% !important;
+            max-width: none !important;
+            padding: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            font-size: 11px !important;
+            line-height: 1.45 !important;
           }
           .no-print {
             display: none !important;
+          }
+
+          /* — header — */
+          .print-area .flex.items-start {
+            gap: 6px !important;
+            margin-bottom: 4px !important;
+          }
+          .print-area img {
+            width: 48px !important;
+            height: 48px !important;
+          }
+          .print-area .shrink-0.text-right .space-y-1 {
+            font-size: 9.5px !important;
+            line-height: 1.4 !important;
+          }
+          .print-area .flex-1.text-center h1 {
+            font-size: 16px !important;
+            margin-bottom: 0 !important;
+          }
+          .print-area .flex-1.text-center p {
+            font-size: 10px !important;
+            margin-top: 0 !important;
+            line-height: 1.3 !important;
+          }
+          .print-area .h-\\[72px\\] {
+            width: 48px !important;
+            height: 48px !important;
+          }
+
+          /* — divider — */
+          .print-area .my-4 {
+            margin-top: 4px !important;
+            margin-bottom: 4px !important;
+          }
+
+          /* — title — */
+          .print-area .text-sm.font-bold {
+            font-size: 11px !important;
+            margin-bottom: 2px !important;
+          }
+
+          /* — body paragraph — */
+          .print-area .text-justify {
+            font-size: 11px !important;
+            line-height: 1.5 !important;
+            text-align: justify !important;
+            margin: 0 !important;
+          }
+          .print-area .inline-block {
+            font-size: 11px !important;
+            padding: 0 1px !important;
+          }
+
+          /* — clauses section — */
+          .print-area .mt-3.text-center.text-sm {
+            font-size: 10.5px !important;
+            margin-top: 4px !important;
+            margin-bottom: 1px !important;
+          }
+          .print-area ol.mt-2 {
+            font-size: 9.5px !important;
+            line-height: 1.4 !important;
+            margin-top: 2px !important;
+            gap: 0 !important;
+          }
+          .print-area ol li {
+            margin-bottom: 0 !important;
+            padding-bottom: 0 !important;
+          }
+
+          /* — witness line — */
+          .print-area .text-center.text-xs[dir="rtl"] {
+            font-size: 9px !important;
+            margin-top: 4px !important;
+            margin-bottom: 0 !important;
+          }
+
+          /* — signature grid — */
+          .print-area .grid.grid-cols-2.gap-x-6 {
+            margin-top: 8px !important;
+            gap-y: 6px !important;
+          }
+          .print-area .grid .space-y-6 > p {
+            font-size: 9px !important;
+            margin-bottom: 2px !important;
+          }
+          .print-area .grid .h-10 {
+            height: 22px !important;
           }
         }
       `}</style>

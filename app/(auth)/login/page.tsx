@@ -25,7 +25,7 @@ export default function LoginPage() {
     formState: { errors },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "" },
+    defaultValues: { identifier: "", password: "" },
   });
 
   async function onSubmit(values: LoginFormValues) {
@@ -54,22 +54,22 @@ export default function LoginPage() {
         {serverError && <Alert>{serverError}</Alert>}
 
         <div className="space-y-1.5 text-right">
-          <Label htmlFor="email">ایمیل یا شماره موبایل</Label>
+          <Label htmlFor="identifier">ایمیل یا شماره موبایل</Label>
           <div className="relative">
             <Mail className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              id="email"
+              id="identifier"
               type="text"
               placeholder="example@company.com"
               className="pr-9"
               dir="ltr"
               autoComplete="username"
-              aria-invalid={!!errors.email}
-              {...register("email")}
+              aria-invalid={!!errors.identifier}
+              {...register("identifier")}
             />
           </div>
-          {errors.email && (
-            <p className="text-xs text-destructive">{errors.email.message}</p>
+          {errors.identifier && (
+            <p className="text-xs text-destructive">{errors.identifier.message}</p>
           )}
         </div>
 
