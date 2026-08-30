@@ -288,7 +288,7 @@ export default function BanksPage() {
                   <Label htmlFor="bank-currency">کدام واحد پولی</Label>
                   <Select
                     value={form.currencyCode}
-                    onValueChange={(v) => setForm((f) => ({ ...f, currencyCode: v }))}
+                    onValueChange={(v) => setForm((f) => ({ ...f, currencyCode: v ?? "" }))}
                   >
                     <SelectTrigger id="bank-currency">
                       <SelectValue />
