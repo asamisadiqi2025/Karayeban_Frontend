@@ -31,7 +31,7 @@ export default function LoginPage() {
   async function onSubmit(values: LoginFormValues) {
     setServerError(null);
     try {
-      await login(values);
+      await login({ identifier: values.email, password: values.password });
     } catch (error) {
       setServerError(error instanceof Error ? error.message : "ورود ناموفق بود");
     }

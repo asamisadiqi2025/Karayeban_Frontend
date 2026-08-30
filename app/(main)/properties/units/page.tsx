@@ -384,7 +384,7 @@ export default function PropertiesPage() {
                 <Label htmlFor="property-floor">طبقه</Label>
                 <Select
                   value={form.floorId}
-                  onValueChange={(v) => setForm((f) => ({ ...f, floorId: v }))}
+                  onValueChange={(v) => setForm((f) => ({ ...f, floorId: v ?? "" }))}
                 >
                   <SelectTrigger id="property-floor" className="w-full">
                     <SelectValue placeholder="انتخاب طبقه" />
