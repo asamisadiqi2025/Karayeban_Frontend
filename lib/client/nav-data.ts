@@ -209,6 +209,10 @@ export const navSections: NavSection[] = [
             href: "/settings/currencies",
           },
           {
+            label: "دالر به واحد پولی",
+            href: "/settings/currencies/adtocurrency",
+          },
+          {
             label: "تنطیمات قرار داد",
             href: "/settings/contract-setup",
           },
