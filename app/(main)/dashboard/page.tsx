@@ -1,32 +1,40 @@
 "use client";
 
-import { DollarSign, Users, ShoppingCart, Eye } from "lucide-react";
+import { DollarSign, Users, Store, Zap } from "lucide-react";
 
 import { StatCard } from "@/components/client/dashboard/stat-card";
 import { OverviewChart } from "@/components/client/dashboard/overview-chart";
-import { TrafficSources } from "@/components/client/dashboard/traffic-sources";
+import { ShopStatus } from "@/components/client/dashboard/traffic-sources";
 import { MonthlyGoals } from "@/components/client/dashboard/monthly-goals";
+import { RecentActivity } from "@/components/client/dashboard/recent-activity";
 import {
   sparkRevenue,
-  sparkUsers,
-  sparkOrders,
-  sparkViews,
+  sparkTenants,
+  sparkShops,
+  sparkElectricity,
 } from "@/lib/client/dashboard-data";
 
 export default function DashboardPage() {
   return (
-    <div className="mx-auto max-w-[1400px]">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Dashboard</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Welcome back, Aigars. Here&apos;s what&apos;s happening with your business today.
-        </p>
+    <div className="mx-auto max-w-[1400px] space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">داشبورد</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            خوش آمدید! نمای کلی مدیریت مارکت گالریا سنتر
+          </p>
+        </div>
+        <div className="text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">{new Date().toLocaleDateString("fa-AF", { year: "numeric", month: "long", day: "numeric" })}</span>
+        </div>
       </div>
 
+      {/* Stat Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Total Revenue"
-          value="$48,295"
+          label="مجموع عایدات"
+          value="۱،۲۸۳،۴۹۵ افغانی"
           change="+12.5%"
           positive
           icon={DollarSign}
@@ -36,48 +44,50 @@ export default function DashboardPage() {
           data={sparkRevenue}
         />
         <StatCard
-          label="Active Users"
-          value="2,847"
+          label="مستاجران فعال"
+          value="۸۲"
           change="+8.2%"
           positive
           icon={Users}
           iconBg="#eff6ff"
           iconColor="#3b82f6"
           strokeColor="#3b82f6"
-          data={sparkUsers}
+          data={sparkTenants}
         />
         <StatCard
-          label="Total Orders"
-          value="1,432"
-          change="-3.1%"
-          positive={false}
-          icon={ShoppingCart}
-          iconBg="#eff6ff"
-          iconColor="#3b82f6"
-          strokeColor="#3b82f6"
-          data={sparkOrders}
-        />
-        <StatCard
-          label="Page Views"
-          value="284K"
-          change="+24.7%"
+          label="دوکان‌های اجاره"
+          value="۶۸"
+          change="+4.1%"
           positive
-          icon={Eye}
+          icon={Store}
           iconBg="#fff7ed"
           iconColor="#f59e0b"
           strokeColor="#f59e0b"
-          data={sparkViews}
+          data={sparkShops}
+        />
+        <StatCard
+          label="مصارف برق"
+          value="۳۴۲٬۰۰۰ افغانی"
+          change="-3.1%"
+          positive={false}
+          icon={Zap}
+          iconBg="#fef2f2"
+          iconColor="#e11d48"
+          strokeColor="#e11d48"
+          data={sparkElectricity}
         />
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <div className="xl:col-span-2">
+      {/* Main Charts */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="xl:col-span-2 space-y-6">
           <OverviewChart />
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <ShopStatus />
+            <MonthlyGoals />
+          </div>
         </div>
-        <div className="flex flex-col gap-4">
-          <TrafficSources />
-          <MonthlyGoals />
-        </div>
+        <RecentActivity />
       </div>
     </div>
   );

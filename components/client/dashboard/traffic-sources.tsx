@@ -3,23 +3,23 @@
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { trafficSources } from "@/lib/client/dashboard-data";
+import { shopStatus } from "@/lib/client/dashboard-data";
 
-export function TrafficSources() {
-  const totalVisits = "284K";
+export function ShopStatus() {
+  const totalShops = "92";
 
   return (
     <Card>
       <CardHeader className="pb-0">
-        <CardTitle className="text-base font-semibold text-foreground">Traffic Sources</CardTitle>
-        <p className="text-sm text-muted-foreground">Where your visitors come from</p>
+        <CardTitle className="text-base font-semibold text-foreground">وضعیت دوکان‌ها</CardTitle>
+        <p className="text-sm text-muted-foreground">توزیع وضعیت دوکان‌های مارکت</p>
       </CardHeader>
       <CardContent className="flex flex-col items-center gap-6 pt-4 sm:flex-row sm:items-center">
         <div className="relative h-[140px] w-[140px] shrink-0">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
-                data={trafficSources}
+                data={shopStatus}
                 dataKey="value"
                 nameKey="name"
                 innerRadius={44}
@@ -29,20 +29,20 @@ export function TrafficSources() {
                 endAngle={-270}
                 stroke="none"
               >
-                {trafficSources.map((s) => (
+                {shopStatus.map((s) => (
                   <Cell key={s.name} fill={s.color} />
                 ))}
               </Pie>
             </PieChart>
           </ResponsiveContainer>
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-lg font-semibold text-foreground">{totalVisits}</span>
-            <span className="text-[11px] text-muted-foreground">Visits</span>
+            <span className="text-lg font-semibold text-foreground">{totalShops}</span>
+            <span className="text-[11px] text-muted-foreground">دوکان</span>
           </div>
         </div>
 
         <ul className="w-full flex-1 space-y-2.5">
-          {trafficSources.map((s) => (
+          {shopStatus.map((s) => (
             <li key={s.name} className="flex items-center justify-between text-sm">
               <span className="flex items-center gap-2 text-muted-foreground">
                 <span className="h-2 w-2 rounded-full" style={{ backgroundColor: s.color }} />

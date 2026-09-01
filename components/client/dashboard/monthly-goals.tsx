@@ -2,22 +2,19 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { monthlyGoals } from "@/lib/client/dashboard-data";
-import { cn } from "@/lib/shared/utils";
 
 export function MonthlyGoals() {
   return (
     <Card>
       <CardHeader className="pb-1">
-        <CardTitle className="text-base font-semibold text-foreground">Monthly Goals</CardTitle>
-        <p className="text-sm text-muted-foreground">Track progress toward targets</p>
+        <CardTitle className="text-base font-semibold text-foreground">اهداف ماهانه</CardTitle>
+        <p className="text-sm text-muted-foreground">پیشرفت نسبت به هدف‌ها</p>
       </CardHeader>
       <CardContent className="space-y-4 pt-3">
         {monthlyGoals.map((goal) => {
           const pct = Math.min(100, Math.round((goal.current / goal.target) * 100));
-          const value =
-            goal.label === "Monthly Revenue" ? `$${goal.current.toLocaleString()}` : goal.current.toLocaleString();
-          const target =
-            goal.label === "Monthly Revenue" ? `$${goal.target.toLocaleString()}` : goal.target.toLocaleString();
+          const value = `$${goal.current.toLocaleString()}`;
+          const target = `$${goal.target.toLocaleString()}`;
 
           return (
             <div key={goal.label}>
@@ -29,8 +26,8 @@ export function MonthlyGoals() {
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
                 <div
-                  className={cn("h-full rounded-full bg-primary transition-all")}
-                  style={{ width: `${pct}%` }}
+                  className="h-full rounded-full transition-all"
+                  style={{ width: `${pct}%`, backgroundColor: goal.color }}
                 />
               </div>
             </div>
