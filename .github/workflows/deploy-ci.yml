@@ -4,12 +4,22 @@ on:
   push:
     branches:
       - test
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-coolify-test
+  cancel-in-progress: false
+
+permissions: {}
 
 jobs:
   deploy:
+    name: Deploy to Coolify
     runs-on: ubuntu-latest
-
     steps:
-      - name: Trigger Coolify Deployment
+      - name: Trigger Coolify deployment
         run: |
-          curl "${{ secrets.COOLIFY_WEBHOOK }}"
+          curl --fail --silent --show-error \
+            --request GET \
+            --header "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
+            "${{ secrets.COOLIFY_WEBHOOK }}"
