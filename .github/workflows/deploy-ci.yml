@@ -8,7 +8,7 @@ on:
 
 concurrency:
   group: deploy-coolify-test
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions: {}
 
@@ -16,6 +16,7 @@ jobs:
   docker:
     name: Build Docker image
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || (!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[skip cd]')) }}
     permissions:
       contents: read
       actions: write
@@ -43,10 +44,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Coolify deployment
+        env:
+          COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
         run: |
-          curl --fail --silent --show-error \
+          set -euo pipefail
+
+          missing=0
+          for var in COOLIFY_WEBHOOK COOLIFY_TOKEN; do
+            if [ -z "${!var:-}" ]; then
+              echo "::error::Missing GitHub secret: ${var}"
+              missing=1
+            fi
+          done
+          if [ "${missing}" -ne 0 ]; then
+            echo "::error::Add COOLIFY_WEBHOOK and COOLIFY_TOKEN in repo Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+          echo "Deploying ${GITHUB_SHA} from ${GITHUB_REF_NAME} to Coolify..."
+
+          curl --fail-with-body --silent --show-error \
             --request POST \
-            --header "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
-            --header "Content-Type: application/json" \
+            --url "${COOLIFY_WEBHOOK}" \
+            --header "Authorization: Bearer ${COOLIFY_TOKEN}" \
             --header "Accept: application/json" \
-            "${{ secrets.COOLIFY_WEBHOOK }}"
+            --header "Content-Type: application/json"
+
+          echo
+          echo "Coolify deploy triggered."
