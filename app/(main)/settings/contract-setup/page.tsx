@@ -50,7 +50,7 @@ interface ContractData {
 
 const initialData: ContractData = {
   documentNumber: "28",
-  documentDate: "1405/07/18",
+  documentDate: "",
   baseRent: "55000",
 
   owner1Name: "حاجی محمد داود عادلیار",
@@ -76,7 +76,7 @@ const initialData: ContractData = {
   monthlyRentInWords: "پنجاه و پنج هزار",
   halfAmount: "",
   durationMonths: "",
-  startDate: "1405/07/18",
+  startDate: "",
   endDate: "",
 };
 
@@ -173,13 +173,21 @@ export default function GaleriaContractPage() {
             <h3 className="text-sm font-semibold text-foreground">اطلاعات سند</h3>
             <div className="grid grid-cols-2 gap-3">
               <Field label="شماره" value={data.documentNumber} onChange={set("documentNumber")} />
-              <Field label="تاریخ" value={data.documentDate} onChange={set("documentDate")} />
-            <DatePicker
-  calendar={persian}
-  locale={afghanLocale}
-  calendarPosition="bottom-right"
-  placeholder="تاریخ را انتخاب کنید"
-/>
+              <div className="space-y-1.5">
+                <Label className="text-xs">تاریخ</Label>
+                <DatePicker
+                  calendar={persian}
+                  locale={afghanLocale}
+                  calendarPosition="bottom-right"
+                  placeholder="تاریخ را انتخاب کنید"
+                  value={data.documentDate || undefined}
+                  onChange={(date) => {
+                    if (date?.isValid) {
+                      set("documentDate")(date.format());
+                    }
+                  }}
+                />
+              </div>
             </div>
             <Field label="اصل کرایه" value={data.baseRent} onChange={set("baseRent")} />
           </Card>
@@ -251,10 +259,38 @@ export default function GaleriaContractPage() {
               onChange={set("monthlyRentInWords")}
             />
             <div className="grid grid-cols-2 gap-3">
-              <Field label="مدت (به برج)" value={data.durationMonths} onChange={set("durationMonths")} />
+              <Field label="مدت (یک ماه)" value={data.durationMonths} onChange={set("durationMonths")} />
               <div />
-              <Field label="از تاریخ" value={data.startDate} onChange={set("startDate")} />
-              <Field label="الی تاریخ" value={data.endDate} onChange={set("endDate")} />
+              <div className="space-y-1.5">
+                <Label className="text-xs">از تاریخ</Label>
+                <DatePicker
+                  calendar={persian}
+                  locale={afghanLocale}
+                  calendarPosition="bottom-right"
+                  placeholder="تاریخ شروع"
+                  value={data.startDate || undefined}
+                  onChange={(date) => {
+                    if (date?.isValid) {
+                      set("startDate")(date.format());
+                    }
+                  }}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">الی تاریخ</Label>
+                <DatePicker
+                  calendar={persian}
+                  locale={afghanLocale}
+                  calendarPosition="bottom-right"
+                  placeholder="تاریخ پایان"
+                  value={data.endDate || undefined}
+                  onChange={(date) => {
+                    if (date?.isValid) {
+                      set("endDate")(date.format());
+                    }
+                  }}
+                />
+              </div>
             </div>
           </Card>
         </div>
@@ -263,7 +299,7 @@ export default function GaleriaContractPage() {
         <div className="print-area flex justify-center">
           <div
             dir="rtl"
-            className="w-full max-w-[720px] border border-neutral-300 bg-white p-6 text-[15px] leading-7 text-neutral-800 shadow-sm print:max-w-none print:border-0 print:shadow-none"
+            className="w-full max-w-[720px] border border-neutral-300 bg-white p-6 text-[15px] leading-7 text-neutral-800 shadow-sm print:max-w-none print:border-0 print:shadow-none print:overflow-visible"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="shrink-0 text-right">
@@ -366,9 +402,23 @@ export default function GaleriaContractPage() {
 
       {/* استایل مخصوص چاپ: سند کامل یک صفحه A4 */}
       <style jsx global>{`
+        .rmdp-input {
+          width: 100%;
+          height: 36px;
+          border-radius: 6px;
+          border: 1px solid hsl(var(--border));
+          background: transparent;
+          padding: 0 12px;
+          font-size: 14px;
+        }
+        .rmdp-input:focus {
+          outline: none;
+          ring: 2px solid hsl(var(--ring));
+          border-color: hsl(var(--ring));
+        }
         @page {
           size: A4;
-          margin: 8mm 10mm;
+          margin: 10mm 15mm;
         }
         @media print {
           body * {
@@ -383,7 +433,7 @@ export default function GaleriaContractPage() {
             top: 0;
             left: 0;
             width: 100%;
-            overflow: hidden;
+            overflow: visible;
           }
           .print-area > div {
             width: 100% !important;
@@ -392,6 +442,10 @@ export default function GaleriaContractPage() {
             border: none !important;
             box-shadow: none !important;
             margin: 0 !important;
+            overflow: visible !important;
+            overflow-wrap: break-word !important;
+            word-wrap: break-word !important;
+            box-sizing: border-box !important;
             font-family: "B Nazanin", Tahoma, Arial, sans-serif !important;
             font-size: 16px !important;
             line-height: 1.75 !important;
