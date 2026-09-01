@@ -1,14 +1,12 @@
-name: Deploy Test
+name: CI
 
 on:
-  push:
-    branches:
-      - test
+  pull_request:
   workflow_dispatch:
 
 concurrency:
-  group: deploy-coolify-test
-  cancel-in-progress: false
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions: {}
 
@@ -36,17 +34,3 @@ jobs:
             NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL || 'http://localhost:3001' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  deploy:
-    name: Deploy to Coolify
-    needs: docker
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger Coolify deployment
-        run: |
-          curl --fail --silent --show-error \
-            --request POST \
-            --header "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
-            --header "Content-Type: application/json" \
-            --header "Accept: application/json" \
-            "${{ secrets.COOLIFY_WEBHOOK }}"

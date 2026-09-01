@@ -28,6 +28,20 @@ npm run build
 npm start
 ```
 
+## Docker
+
+```bash
+docker compose up --build
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+`NEXT_PUBLIC_API_URL` is inlined at image build time. Override it:
+
+```bash
+NEXT_PUBLIC_API_URL=https://api.example.com docker compose up --build
+```
+
 ## Adding UI components
 
 ```bash
@@ -38,9 +52,10 @@ Components land in `components/ui` and are imported as `@/components/ui/button`.
 
 ## Deploy on Coolify
 
-Pushes to `test` trigger [`.github/workflows/deploy-ci.yml`](./.github/workflows/deploy-ci.yml), which calls the Coolify webhook.
+Pushes to `test` run [`.github/workflows/deploy-ci.yml`](./.github/workflows/deploy-ci.yml): the Docker image must build, then the Coolify webhook is called. Pull requests run [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) (Docker build only).
 
 1. Point a Coolify resource at this repo and the `test` branch.
-2. Set **`NEXT_PUBLIC_API_URL`** and mark it *Available at Buildtime*.
-3. Set GitHub secrets `COOLIFY_TOKEN` and `COOLIFY_WEBHOOK`.
-4. Expose the port Coolify uses for `next start` (usually `3000`).
+2. Use **Dockerfile** or **Docker Compose** as the build pack (`docker-compose.yml`).
+3. Set **`NEXT_PUBLIC_API_URL`** as a Docker build argument and mark it *Available at Buildtime*.
+4. Set GitHub secrets `COOLIFY_TOKEN` and `COOLIFY_WEBHOOK`. Optional: repository variable `NEXT_PUBLIC_API_URL` for CI image builds.
+5. Expose port `3000`.
