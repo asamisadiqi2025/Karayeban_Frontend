@@ -4,6 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Printer } from "lucide-react";
 import Image from "next/image";
 
+
+import DatePicker from "react-multi-date-picker";
+import persian from "react-date-object/calendars/persian";
+
+import afghanLocale  from "@/lib/date-picker/afghan-locale";
+
 import { PageHeader } from "@/components/server/dashboard/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,7 +55,7 @@ const initialData: ContractData = {
 
   owner1Name: "حاجی محمد داود عادلیار",
   owner1Father: "جمعه خان",
-  owner1Grandfather: "خان حیدر خان",
+  owner1Grandfather: "حیدر خان",
   owner1Tazkira: "178",
 
   owner2Name: "انجنیر سید اسماعیل امیری",
@@ -58,7 +64,7 @@ const initialData: ContractData = {
   owner2Tazkira: "73",
 
   shopNumber: "134",
-  viaLocation: "اپارتمنت گالریا سنتر",
+  viaLocation: "گالریا سنتر",
   area: "17",
 
   tenantName: "",
@@ -87,7 +93,7 @@ const CLAUSES: string[] = [
 function Blank({ value, width = "min-w-[70px]" }: { value: string; width?: string }) {
   return (
     <span
-      className={`inline-block ${width} border-b border-dotted border-neutral-500 px-1 text-center font-semibold text-neutral-900`}
+      className={`inline-block ${width} border-b-[1.5px] border-b-neutral-400 px-1 text-center font-semibold text-neutral-900`}
     >
       {value.trim() !== "" ? value : "\u00A0"}
     </span>
@@ -168,6 +174,12 @@ export default function GaleriaContractPage() {
             <div className="grid grid-cols-2 gap-3">
               <Field label="شماره" value={data.documentNumber} onChange={set("documentNumber")} />
               <Field label="تاریخ" value={data.documentDate} onChange={set("documentDate")} />
+            <DatePicker
+  calendar={persian}
+  locale={afghanLocale}
+  calendarPosition="bottom-right"
+  placeholder="تاریخ را انتخاب کنید"
+/>
             </div>
             <Field label="اصل کرایه" value={data.baseRent} onChange={set("baseRent")} />
           </Card>
@@ -251,7 +263,7 @@ export default function GaleriaContractPage() {
         <div className="print-area flex justify-center">
           <div
             dir="rtl"
-            className="w-full max-w-[720px] border border-neutral-300 bg-white p-6 text-[13px] leading-7 text-neutral-800 shadow-sm print:max-w-none print:border-0 print:shadow-none"
+            className="w-full max-w-[720px] border border-neutral-300 bg-white p-6 text-[15px] leading-7 text-neutral-800 shadow-sm print:max-w-none print:border-0 print:shadow-none"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="shrink-0 text-right">
@@ -276,12 +288,12 @@ export default function GaleriaContractPage() {
               </div>
 
               <div className="flex-1 text-center">
-                <h1 className="text-2xl font-extrabold text-orange-700">گالریا سنتر</h1>
-                <p className="-mt-1 font-serif text-lg italic text-rose-500">Galeria Center</p>
-                <p className="mt-2 text-sm font-bold text-blue-800">
+                <h1 className="text-[26px] font-extrabold tracking-tight text-orange-700">گالریا سنتر</h1>
+                <p className="font-serif text-base italic text-rose-500">Galeria Center</p>
+                <p className="mt-2 text-[15px] font-bold text-blue-800">
                   سند کرایه خط دوکاکین گالریا سنتر
                 </p>
-                <p className="text-sm font-bold text-blue-800">
+                <p className="text-[13px] font-semibold text-blue-700">
                   واقع جاده جنوبی مسجد جامع بزرگ هرات
                 </p>
               </div>
@@ -291,8 +303,8 @@ export default function GaleriaContractPage() {
 
             <div className="my-4 border-t border-neutral-400" />
 
-            <p className="text-sm font-bold">باعث از تحریر هذا:</p>
-            <p className="text-justify">
+            <p className="text-[15px] font-bold">باعث از تحریر هذا:</p>
+            <p className="text-justify leading-7">
               اینجانب <Blank value={data.owner1Name} width="min-w-[140px]" /> ولد{" "}
               <Blank value={data.owner1Father} /> ولدیت <Blank value={data.owner1Grandfather} /> دارنده
               تذکره نمبر (<Blank value={data.owner1Tazkira} width="min-w-[50px]" />) و{" "}
@@ -315,9 +327,9 @@ export default function GaleriaContractPage() {
               <Blank value={data.endDate} width="min-w-[70px]" />) به کرایه داده‌ایم.
             </p>
 
-            <p className="mt-3 text-center text-sm font-bold">مکلفیت‌های مستاجر یا کرایه‌نشین</p>
+            <p className="mt-4 text-center text-[15px] font-bold">مکلفیت‌های مستاجر یا کرایه‌نشین</p>
 
-            <ol className="mt-2 space-y-2 text-justify text-[12px] leading-6">
+            <ol className="mt-2 space-y-2 text-justify text-[14px] leading-[1.7]">
               {CLAUSES.map((clause, index) => (
                 <li key={index}>
                   <span className="font-bold">{index + 1}- </span>
@@ -326,37 +338,37 @@ export default function GaleriaContractPage() {
               ))}
             </ol>
 
-            <p className="mt-3 text-center text-xs" dir="rtl">
+            <p className="mt-4 text-center text-xs" dir="rtl">
               (و کان ذلک فی محضر المسلمین)
             </p>
 
-            <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-10 text-center text-xs">
+            <div className="mt-10 grid grid-cols-2 gap-x-8 gap-y-12 text-center text-[14px]">
               <div className="space-y-6">
-                <p>امضاء و نشان مالکین</p>
-                <div className="h-10 border-t border-dotted border-neutral-500" />
+                <p className="font-semibold">امضاء و نشان مالکین</p>
+                <div className="h-12 border-t border-dotted border-neutral-500" />
               </div>
               <div className="space-y-6">
-                <p>امضاء و نشان مستاجر</p>
-                <div className="h-10 border-t border-dotted border-neutral-500" />
+                <p className="font-semibold">امضاء و نشان مستاجر</p>
+                <div className="h-12 border-t border-dotted border-neutral-500" />
               </div>
               <div className="space-y-6">
-                <p>امضاء و نشان شاهد</p>
-                <div className="h-10 border-t border-dotted border-neutral-500" />
+                <p className="font-semibold">امضاء و نشان شاهد</p>
+                <div className="h-12 border-t border-dotted border-neutral-500" />
               </div>
               <div className="space-y-6">
-                <p>امضاء و نشان شاهد</p>
-                <div className="h-10 border-t border-dotted border-neutral-500" />
+                <p className="font-semibold">امضاء و نشان شاهد</p>
+                <div className="h-12 border-t border-dotted border-neutral-500" />
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* استایل مخصوص چاپ: فقط سند در یک صفحه چاپ شود */}
+      {/* استایل مخصوص چاپ: سند کامل یک صفحه A4 */}
       <style jsx global>{`
         @page {
           size: A4;
-          margin: 10mm 12mm;
+          margin: 8mm 10mm;
         }
         @media print {
           body * {
@@ -380,8 +392,9 @@ export default function GaleriaContractPage() {
             border: none !important;
             box-shadow: none !important;
             margin: 0 !important;
-            font-size: 11px !important;
-            line-height: 1.45 !important;
+            font-family: "B Nazanin", Tahoma, Arial, sans-serif !important;
+            font-size: 16px !important;
+            line-height: 1.75 !important;
           }
           .no-print {
             display: none !important;
@@ -389,90 +402,90 @@ export default function GaleriaContractPage() {
 
           /* — header — */
           .print-area .flex.items-start {
-            gap: 6px !important;
-            margin-bottom: 4px !important;
+            gap: 10px !important;
+            margin-bottom: 8px !important;
           }
           .print-area img {
-            width: 48px !important;
-            height: 48px !important;
+            width: 60px !important;
+            height: 60px !important;
           }
           .print-area .shrink-0.text-right .space-y-1 {
-            font-size: 9.5px !important;
-            line-height: 1.4 !important;
+            font-size: 14px !important;
+            line-height: 1.5 !important;
           }
           .print-area .flex-1.text-center h1 {
-            font-size: 16px !important;
-            margin-bottom: 0 !important;
+            font-size: 28px !important;
+            margin-bottom: 2px !important;
           }
           .print-area .flex-1.text-center p {
-            font-size: 10px !important;
-            margin-top: 0 !important;
-            line-height: 1.3 !important;
+            font-size: 16px !important;
+            margin-top: 1px !important;
+            line-height: 1.4 !important;
           }
           .print-area .h-\\[72px\\] {
-            width: 48px !important;
-            height: 48px !important;
+            width: 64px !important;
+            height: 64px !important;
           }
 
           /* — divider — */
           .print-area .my-4 {
-            margin-top: 4px !important;
-            margin-bottom: 4px !important;
+            margin-top: 10px !important;
+            margin-bottom: 10px !important;
           }
 
-          /* — title — */
-          .print-area .text-sm.font-bold {
-            font-size: 11px !important;
-            margin-bottom: 2px !important;
+          /* — section titles — */
+          .print-area .font-bold {
+            font-size: 17px !important;
+            margin-bottom: 4px !important;
           }
 
           /* — body paragraph — */
           .print-area .text-justify {
-            font-size: 11px !important;
-            line-height: 1.5 !important;
+            font-size: 16px !important;
+            line-height: 1.8 !important;
             text-align: justify !important;
             margin: 0 !important;
           }
           .print-area .inline-block {
-            font-size: 11px !important;
-            padding: 0 1px !important;
+            font-size: 16px !important;
+            padding: 0 2px !important;
           }
 
           /* — clauses section — */
-          .print-area .mt-3.text-center.text-sm {
-            font-size: 10.5px !important;
-            margin-top: 4px !important;
-            margin-bottom: 1px !important;
+          .print-area .text-center.font-bold {
+            font-size: 17px !important;
+            margin-top: 10px !important;
+            margin-bottom: 4px !important;
           }
           .print-area ol.mt-2 {
-            font-size: 9.5px !important;
-            line-height: 1.4 !important;
-            margin-top: 2px !important;
-            gap: 0 !important;
+            font-size: 14px !important;
+            line-height: 1.7 !important;
+            margin-top: 4px !important;
+            gap: 4px !important;
           }
           .print-area ol li {
-            margin-bottom: 0 !important;
-            padding-bottom: 0 !important;
+            margin-bottom: 2px !important;
+            padding-bottom: 2px !important;
           }
 
           /* — witness line — */
           .print-area .text-center.text-xs[dir="rtl"] {
-            font-size: 9px !important;
-            margin-top: 4px !important;
+            font-size: 14px !important;
+            margin-top: 10px !important;
             margin-bottom: 0 !important;
           }
 
           /* — signature grid — */
-          .print-area .grid.grid-cols-2.gap-x-6 {
-            margin-top: 8px !important;
-            gap-y: 6px !important;
+          .print-area .grid.grid-cols-2.gap-x-8 {
+            margin-top: 16px !important;
+            gap-y: 14px !important;
           }
           .print-area .grid .space-y-6 > p {
-            font-size: 9px !important;
-            margin-bottom: 2px !important;
+            font-size: 14px !important;
+            margin-bottom: 4px !important;
           }
-          .print-area .grid .h-10 {
-            height: 22px !important;
+          .print-area .grid .h-12 {
+            height: 36px !important;
           }
         }
       `}</style>

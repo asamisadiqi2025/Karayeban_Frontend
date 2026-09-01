@@ -68,7 +68,8 @@ apiClient.interceptors.response.use(
       originalRequest &&
       !originalRequest._retry &&
       !originalRequest.url?.includes("/auth/refresh") &&
-      !originalRequest.url?.includes("/auth/login")
+      !originalRequest.url?.includes("/auth/login") &&
+      !originalRequest.url?.includes("/auth/me")
     ) {
       originalRequest._retry = true;
 
