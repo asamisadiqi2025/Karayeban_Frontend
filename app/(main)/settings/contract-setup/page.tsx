@@ -3,13 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Printer } from "lucide-react";
 import Image from "next/image";
-
-
 import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
-
 import afghanLocale  from "@/lib/date-picker/afghan-locale";
-
 import { PageHeader } from "@/components/server/dashboard/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -90,11 +86,9 @@ const CLAUSES: string[] = [
   "اجاره‌دار بدون موافقه مالکین نمی‌تواند دوکان را به شخص دیگری به کرایه داده و یا تغییر مسیر دهد. طرفین متعهد به اقرار خویش صادق بوده و من مستاجر یا کرایه‌نشین اقرار می‌نمایم که طبق متن مندرجات فوق عمل نموده و هیچ‌گونه عذری نخواهم آورد.",
 ];
 
-function Blank({ value, width = "min-w-[70px]" }: { value: string; width?: string }) {
+function Blank({ value }: { value: string }) {
   return (
-    <span
-      className={`inline-block ${width} border-b-[1.5px] border-b-neutral-400 px-1 text-center font-semibold text-neutral-900`}
-    >
+    <span className="border-b-[1.5px] border-b-neutral-400 px-0.5 font-semibold text-neutral-900">
       {value.trim() !== "" ? value : "\u00A0"}
     </span>
   );
@@ -312,13 +306,13 @@ export default function GaleriaContractPage() {
                 />
                 <div className="mt-2 space-y-1 text-xs">
                   <p>
-                    شماره: <Blank value={data.documentNumber} width="min-w-[50px]" />
+                    شماره: <Blank value={data.documentNumber} />
                   </p>
                   <p>
-                    تاریخ: <Blank value={data.documentDate} width="min-w-[70px]" />
+                    تاریخ: <Blank value={data.documentDate} />
                   </p>
                   <p>
-                    اصل کرایه: <Blank value={data.baseRent} width="min-w-[60px]" />
+                    اصل کرایه: <Blank value={data.baseRent} />
                   </p>
                 </div>
               </div>
@@ -341,26 +335,26 @@ export default function GaleriaContractPage() {
 
             <p className="text-[15px] font-bold">باعث از تحریر هذا:</p>
             <p className="text-justify leading-7">
-              اینجانب <Blank value={data.owner1Name} width="min-w-[140px]" /> ولد{" "}
+              اینجانب <Blank value={data.owner1Name} /> ولد{""}
               <Blank value={data.owner1Father} /> ولدیت <Blank value={data.owner1Grandfather} /> دارنده
-              تذکره نمبر (<Blank value={data.owner1Tazkira} width="min-w-[50px]" />) و{" "}
-              <Blank value={data.owner2Name} width="min-w-[160px]" /> ولد{" "}
+              تذکره نمبر (<Blank value={data.owner1Tazkira} />) و{""}
+              <Blank value={data.owner2Name} /> ولد{""}
               <Blank value={data.owner2Father} /> ولدیت <Blank value={data.owner2Grandfather} /> دارنده
-              تذکره نمبر (<Blank value={data.owner2Tazkira} width="min-w-[50px]" />)، دو نفر مالکین که
+              تذکره نمبر (<Blank value={data.owner2Tazkira} />)، دو نفر مالکین که
               دارای اهلیت شرعی و قانونی خویش بوده و می‌باشیم، یکدربندر دوکان ملکیت شخصی مایان که دارای
-              نمبر (<Blank value={data.shopNumber} width="min-w-[50px]" />) از طریق{" "}
-              <Blank value={data.viaLocation} width="min-w-[140px]" /> به مساحت (
-              <Blank value={data.area} width="min-w-[40px]" />) متر مربع بالای محترم{" "}
-              <Blank value={data.tenantName} width="min-w-[140px]" /> ولد{" "}
+              نمبر (<Blank value={data.shopNumber} />) از طریق{" "}
+              <Blank value={data.viaLocation} /> به مساحت (
+              <Blank value={data.area} />) متر مربع بالای محترم{" "}
+              <Blank value={data.tenantName} /> ولد{""}
               <Blank value={data.tenantFather} /> ولدیت <Blank value={data.tenantGrandfather} /> دارنده
-              تذکره نمبر (<Blank value={data.tenantTazkira} width="min-w-[70px]" />) که موصوف نیز
+              تذکره نمبر (<Blank value={data.tenantTazkira} />) که موصوف نیز
               دارای اهلیت شرعی و قانونی خویش بوده، از قرار کرایه فی برج مبلغ (
-              <Blank value={data.monthlyRentAmount} width="min-w-[70px]" />) (حروف:{" "}
-              <Blank value={data.monthlyRentInWords} width="min-w-[140px]" />) که مناصفه آن مبلغ (
-              <Blank value={halfAmountDisplay} width="min-w-[70px]" />) می‌شود، برای مدت (
-              <Blank value={data.durationMonths} width="min-w-[40px]" />) برج، اعتبار از تاریخ (
-              <Blank value={data.startDate} width="min-w-[70px]" />) الی (
-              <Blank value={data.endDate} width="min-w-[70px]" />) به کرایه داده‌ایم.
+              <Blank value={data.monthlyRentAmount} />) (حروف:{" "}
+              <Blank value={data.monthlyRentInWords} />) که مناصفه آن مبلغ (
+              <Blank value={halfAmountDisplay} />) می‌شود، برای مدت (
+              <Blank value={data.durationMonths} />) برج، اعتبار از تاریخ (
+              <Blank value={data.startDate} />) الی (
+              <Blank value={data.endDate} />) به کرایه داده‌ایم.
             </p>
 
             <p className="mt-4 text-center text-[15px] font-bold">مکلفیت‌های مستاجر یا کرایه‌نشین</p>
