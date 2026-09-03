@@ -29,9 +29,11 @@ import {
 } from "@/components/ui/table";
 import {
   fetchCurrencyCatalog,
+  fetchAddedCurrencies,
   addCurrencyToSystem,
   type CurrencyCatalogItem,
 } from "@/services/currency.service";
+import { fetchMyMarket } from "@/services/market.service";
 import { extractApiErrorMessage } from "@/services/client";
 
 export default function AdToCurrencyPage() {
@@ -41,8 +43,9 @@ export default function AdToCurrencyPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [addingCode, setAddingCode] = useState<string | null>(null);
-  const [addedCodes, setAddedCodes] = useState<Set<string>>(new Set());
+  const [addedCodes, setAddedCodes] = useState<string[]>([]);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [marketId, setMarketId] = useState<string | null>(null);
 
   const [page, setPage] = useState(1);
   const pageSize = 10;
@@ -53,13 +56,28 @@ export default function AdToCurrencyPage() {
   const startIndex = (currentPage - 1) * pageSize;
   const paginatedItems = items.slice(startIndex, startIndex + pageSize);
 
+  // Fetch already-added currencies on mount
+  const loadAdded = useCallback(async () => {
+    try {
+      const data = await fetchAddedCurrencies();
+      const list = Array.isArray(data) ? data : [];
+      setAddedCodes(list.map((c) => c.code));
+    } catch {
+      setAddedCodes([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAdded();
+  }, [loadAdded]);
+
   // Debounce search input
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(query), 400);
     return () => clearTimeout(t);
   }, [query]);
 
-  const load = useCallback(async (search: string) => {
+  const loadCatalog = useCallback(async (search: string) => {
     setLoading(true);
     setError(null);
     try {
@@ -74,32 +92,33 @@ export default function AdToCurrencyPage() {
 
   useEffect(() => {
     setPage(1);
-    load(debouncedQuery);
-  }, [debouncedQuery, load]);
+    loadCatalog(debouncedQuery);
+  }, [debouncedQuery, loadCatalog]);
 
-  function showFeedback(message: string) {
+  function showFeedback(message: string, isError = false) {
     setFeedback(message);
     if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
-    feedbackTimer.current = setTimeout(() => setFeedback(null), 2500);
+    feedbackTimer.current = setTimeout(() => setFeedback(null), 3000);
   }
 
   async function handleAdd(item: CurrencyCatalogItem) {
     setAddingCode(item.code);
     try {
       await addCurrencyToSystem(item.code);
-      setAddedCodes((prev) => new Set(prev).add(item.code));
+      await loadAdded();
       showFeedback(`واحد پولی ${item.name} با موفقیت اضافه شد`);
     } catch (err) {
       const msg = extractApiErrorMessage(err, "امکان افزودن این واحد پولی وجود نداشت");
-      // اگر قبلاً اضافه شده باشد، نشانش می‌دهیم
       if (msg.includes("قبلاً")) {
-        setAddedCodes((prev) => new Set(prev).add(item.code));
+        setAddedCodes((prev) => [...prev, item.code]);
       }
-      showFeedback(msg);
+      showFeedback(msg, true);
     } finally {
       setAddingCode(null);
     }
   }
+
+  const isAdded = (code: string) => addedCodes.includes(code);
 
   return (
     <div>
@@ -168,7 +187,7 @@ export default function AdToCurrencyPage() {
                     <div className="flex flex-col items-center gap-3 text-center">
                       <CircleAlert className="h-8 w-8 text-destructive" />
                       <p className="text-sm text-muted-foreground">{error}</p>
-                      <Button variant="outline" size="sm" onClick={() => load(debouncedQuery)}>
+                      <Button variant="outline" size="sm" onClick={() => loadCatalog(debouncedQuery)}>
                         تلاش مجدد
                       </Button>
                     </div>
@@ -188,7 +207,7 @@ export default function AdToCurrencyPage() {
                 </TableRow>
               ) : (
                 paginatedItems.map((item) => {
-                  const alreadyAdded = addedCodes.has(item.code);
+                  const alreadyAdded = isAdded(item.code);
                   return (
                     <TableRow key={item.code} className="hover:bg-muted/40">
                       <TableCell>

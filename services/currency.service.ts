@@ -30,8 +30,9 @@ export async function fetchCurrencyCatalog(search?: string): Promise<CurrencyCat
  * GET /currencies
  */
 export async function fetchAddedCurrencies(): Promise<AddedCurrency[]> {
-  const { data } = await apiClient.get<AddedCurrency[]>("/currencies");
-  return data;
+  const { data } = await apiClient.get("/currencies");
+  const items = Array.isArray(data) ? data : data?.data ?? data?.results ?? [];
+  return items as AddedCurrency[];
 }
 
 /**

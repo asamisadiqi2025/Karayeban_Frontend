@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
@@ -9,12 +9,24 @@ import { useAuth } from "@/contexts/auth-context";
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (isLoading) return;
+
+    if (!user) {
       router.replace("/login");
+      return;
     }
-  }, [isLoading, user, router]);
+
+    const isAdmin = user.role === "admin" || user.role === "superadmin";
+    const allowedPaths = ["/market-profile", "/settings/currencies/adtocurrency"];
+    const isAllowed = allowedPaths.some((p) => pathname.startsWith(p));
+
+    if (isAdmin && !user.isSetupComplete && !isAllowed) {
+      router.replace("/market-profile");
+    }
+  }, [isLoading, user, router, pathname]);
 
   if (isLoading || !user) {
     return (
