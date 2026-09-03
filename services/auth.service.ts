@@ -8,6 +8,7 @@ export interface AuthUser {
   email: string;
   role: string;
   orgId?: string;
+  isSetupComplete: boolean;
 }
 
 export interface LoginPayload {
@@ -53,6 +54,7 @@ function normalizeUser(raw: any): AuthUser {
     email: raw.email ?? "",
     role: raw.role ?? raw.roleName ?? "user",
     orgId: raw.orgId ?? raw.org_id ?? raw.organizationId,
+    isSetupComplete: raw.isSetupComplete ?? raw.is_setup_complete ?? raw.setupComplete ?? false,
   };
 }
 

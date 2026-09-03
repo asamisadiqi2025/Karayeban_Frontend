@@ -67,7 +67,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const { user: loggedInUser } = await loginRequest(payload);
         setUser(loggedInUser);
-        router.push("/dashboard");
+        if (loggedInUser.role === "admin" || loggedInUser.role === "superadmin") {
+          if (!loggedInUser.isSetupComplete) {
+            router.push("/market-profile");
+          } else {
+            router.push("/dashboard");
+          }
+        } else {
+          router.push("/dashboard");
+        }
       } catch (error) {
         throw new Error(extractApiErrorMessage(error, "ایمیل یا رمز عبور اشتباه است"));
       } finally {
@@ -83,7 +91,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const { user: newUser } = await registerRequest(payload);
         setUser(newUser);
-        router.push("/dashboard");
+        if (newUser.role === "admin" || newUser.role === "superadmin") {
+          if (!newUser.isSetupComplete) {
+            router.push("/market-profile");
+          } else {
+            router.push("/dashboard");
+          }
+        } else {
+          router.push("/dashboard");
+        }
       } catch (error) {
         throw new Error(extractApiErrorMessage(error, "ثبت‌نام ناموفق بود"));
       } finally {
