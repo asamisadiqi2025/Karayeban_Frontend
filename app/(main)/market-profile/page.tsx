@@ -47,7 +47,7 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { createMarket, fetchMyMarket } from "@/services/market.service";
+import { createMarket, updateMarketProfile, fetchMyMarket, type UpdateMarketProfilePayload } from "@/services/market.service";
 import {
   fetchCurrencyCatalog,
   fetchAddedCurrencies,
@@ -56,6 +56,7 @@ import {
   type AddedCurrency,
 } from "@/services/currency.service";
 import { extractApiErrorMessage } from "@/services/client";
+import { useAuth } from "@/contexts/auth-context";
 
 interface MarketProfileForm {
   nameFa: string;
@@ -81,6 +82,7 @@ const initialForm: MarketProfileForm = {
 
 export default function MarketProfilePage() {
   const router = useRouter();
+  const { refreshUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState<MarketProfileForm>(initialForm);
@@ -90,6 +92,7 @@ export default function MarketProfilePage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [marketId, setMarketId] = useState<string | null>(null);
+  const [marketBaseCurrencyId, setMarketBaseCurrencyId] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
 
   function validate(): boolean {
@@ -155,7 +158,21 @@ export default function MarketProfilePage() {
   useEffect(() => {
     let cancelled = false;
     fetchMyMarket()
-      .then((m) => { if (!cancelled) setMarketId(m.id); })
+      .then((m) => {
+        if (cancelled) return;
+        setMarketId(m.id);
+        setMarketBaseCurrencyId(m.baseCurrencyId);
+        if (m.logo) setLogoPreview(m.logo);
+        setForm((prev) => ({
+          ...prev,
+          nameFa: m.name ?? "",
+          address: m.address ?? "",
+          phone: m.phone ?? "",
+          email: m.email ?? "",
+          subdomain: m.subdomain ?? "",
+          details: m.details ?? "",
+        }));
+      })
       .catch(() => { if (!cancelled) setMarketId(null); });
     return () => { cancelled = true; };
   }, []);
@@ -165,11 +182,23 @@ export default function MarketProfilePage() {
     let cancelled = false;
     setCurrenciesLoading(true);
     fetchAddedCurrencies()
-      .then((res) => { if (!cancelled) setAddedCurrencies(Array.isArray(res) ? res : []); })
+      .then((res) => {
+        if (cancelled) return;
+        const items = Array.isArray(res) ? res : [];
+        setAddedCurrencies(items);
+        // if the market already has a base currency (baseCurrencyId),
+        // preselect its code so the dropdown shows the stored value
+        if (marketBaseCurrencyId) {
+          const matched = items.find((c) => c.id === marketBaseCurrencyId);
+          if (matched) {
+            setForm((prev) => ({ ...prev, baseCurrency: matched.code }));
+          }
+        }
+      })
       .catch(() => { if (!cancelled) setAddedCurrencies([]); })
       .finally(() => { if (!cancelled) setCurrenciesLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [marketBaseCurrencyId]);
 
   function handleChange(field: keyof MarketProfileForm) {
     return (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -188,11 +217,12 @@ export default function MarketProfilePage() {
 
     setLogoFile(file);
     setSaved(false);
-    const url = URL.createObjectURL(file);
-    setLogoPreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return url;
-    });
+    // تبدیل به Data URL تا هم برای پیش‌نمایش و هم برای ذخیره در بک‌اند قابل استفاده باشد
+    const reader = new FileReader();
+    reader.onload = () => {
+      setLogoPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
     if (fieldErrors.logo) {
       setFieldErrors((prev) => ({ ...prev, logo: undefined }));
     }
@@ -200,10 +230,7 @@ export default function MarketProfilePage() {
 
   function handleRemoveLogo() {
     setLogoFile(null);
-    setLogoPreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
+    setLogoPreview(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -217,17 +244,37 @@ export default function MarketProfilePage() {
     setError(null);
 
     try {
-      const result = await createMarket({
+      const common = {
         name: form.nameFa,
         address: form.address,
-        subdomain: form.subdomain,
-        logo: "",
-        baseCurrency: form.baseCurrency,
+        logo: logoPreview ?? "",
         phone: form.phone,
         email: form.email,
-      });
-      setMarketId(result.id);
-      setSaved(true);
+      };
+
+      if (marketId) {
+        const updatePayload: UpdateMarketProfilePayload = {
+          ...common,
+          details: form.details,
+        };
+        // ارز پایه فقط در تنظیم اولیه قابل تعیین است و بعداً قابل تغییر نیست
+        if (!marketBaseCurrencyId) {
+          updatePayload.baseCurrency = form.baseCurrency;
+        }
+        await updateMarketProfile(marketId, updatePayload);
+        setSaved(true);
+      } else {
+        const result = await createMarket({
+          ...common,
+          subdomain: form.subdomain,
+          baseCurrency: form.baseCurrency,
+        });
+        setMarketId(result.id);
+        setSaved(true);
+      }
+
+      await refreshUser();
+      router.push("/dashboard");
     } catch (err) {
       setError(extractApiErrorMessage(err, "ذخیره اطلاعات مارکت ناموفق بود"));
     } finally {
@@ -239,6 +286,8 @@ export default function MarketProfilePage() {
   useEffect(() => {
     const t = setTimeout(() => setCatalogDebouncedQuery(catalogQuery), 400);
     return () => clearTimeout(t);
+
+
   }, [catalogQuery]);
 
   const loadCatalog = useCallback(async (search: string) => {
@@ -524,21 +573,7 @@ export default function MarketProfilePage() {
                       ))}
                     </select>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      if (!marketId) {
-                        fetchMyMarket().then((m) => { setMarketId(m.id); setCurrencyOpen(true); }).catch(() => {});
-                      } else {
-                        setCurrencyOpen(true);
-                      }
-                    }}
-                    title="افزودن واحد پولی"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
+               
                 </div>
                 {fieldErrors.baseCurrency && (
                   <p className="text-xs text-destructive">{fieldErrors.baseCurrency}</p>
@@ -590,158 +625,7 @@ export default function MarketProfilePage() {
         </div>
       </form>
 
-      {/* Currency Modal */}
-      <Dialog open={currencyOpen} onOpenChange={setCurrencyOpen}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>افزودن واحد پولی</DialogTitle>
-            <DialogDescription>
-              واحد پولی مورد نظر را جستجو و به سیستم اضافه کنید
-            </DialogDescription>
-          </DialogHeader>
 
-          <div className="space-y-4">
-            {currencyFeedback && (
-              <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-700">
-                <Check className="h-4 w-4" />
-                {currencyFeedback}
-              </div>
-            )}
-
-            <div className="relative">
-              <Search className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="جستجو بر اساس کد یا نام..."
-                className="w-full pr-9"
-                value={catalogQuery}
-                onChange={(e) => setCatalogQuery(e.target.value)}
-              />
-            </div>
-
-            {catalogLoading ? (
-              <div className="flex items-center justify-center py-10">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : catalogError ? (
-              <div className="flex flex-col items-center gap-3 py-10 text-center">
-                <p className="text-sm text-muted-foreground">{catalogError}</p>
-                <Button variant="outline" size="sm" onClick={() => loadCatalog(catalogDebouncedQuery)}>
-                  تلاش مجدد
-                </Button>
-              </div>
-            ) : catalogItems.length === 0 ? (
-              <p className="py-10 text-center text-sm text-muted-foreground">واحد پولی‌ای یافت نشد</p>
-            ) : (
-              <>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-right">کد</TableHead>
-                      <TableHead className="text-right">نام</TableHead>
-                      <TableHead className="text-right">سیمبول</TableHead>
-                      <TableHead className="text-left">عملیات</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paginatedCatalog.map((item) => {
-                      const alreadyAdded = isAdded(item.code);
-                      return (
-                        <TableRow key={item.code} className="hover:bg-muted/40">
-                          <TableCell>
-                            <span className="inline-flex min-w-[52px] items-center rounded-md bg-muted px-2 py-0.5 font-mono text-xs font-semibold">
-                              {item.code}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">
-                                <Banknote className="h-3.5 w-3.5 text-muted-foreground" />
-                              </div>
-                              <span className="font-medium">{item.name}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {item.symbol ?? "—"}
-                          </TableCell>
-                          <TableCell className="text-left">
-                            <Button
-                              variant={alreadyAdded ? "secondary" : "default"}
-                              size="sm"
-                              disabled={alreadyAdded || addingCode === item.code}
-                              onClick={() => handleAddCurrency(item)}
-                            >
-                              {addingCode === item.code ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : alreadyAdded ? (
-                                <Check className="h-3.5 w-3.5" />
-                              ) : (
-                                <Plus className="h-3.5 w-3.5" />
-                              )}
-                              {alreadyAdded ? "اضافه شده" : "افزودن"}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-
-                {/* Pagination */}
-                {catalogTotalPages > 1 && (
-                  <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
-                    <p className="text-xs text-muted-foreground">
-                      صفحه {catalogPage.toLocaleString("fa-AF")} از{" "}
-                      {catalogTotalPages.toLocaleString("fa-AF")} —{" "}
-                      {catalogItems.length.toLocaleString("fa-AF")} مورد
-                    </p>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="outline"
-                        size="icon-sm"
-                        disabled={catalogPage === 1}
-                        onClick={() => setCatalogPage(1)}
-                      >
-                        <ChevronsRight className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon-sm"
-                        disabled={catalogPage === 1}
-                        onClick={() => setCatalogPage((p) => Math.max(1, p - 1))}
-                      >
-                        <ChevronRight className="h-3.5 w-3.5" />
-                      </Button>
-                      <span className="mx-1 min-w-[50px] text-center text-xs font-medium">
-                        {catalogPage.toLocaleString("fa-AF")} / {catalogTotalPages.toLocaleString("fa-AF")}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="icon-sm"
-                        disabled={catalogPage === catalogTotalPages}
-                        onClick={() => setCatalogPage((p) => Math.min(catalogTotalPages, p + 1))}
-                      >
-                        <ChevronLeft className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon-sm"
-                        disabled={catalogPage === catalogTotalPages}
-                        onClick={() => setCatalogPage(catalogTotalPages)}
-                      >
-                        <ChevronsLeft className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" />}>بستن</DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
