@@ -239,6 +239,8 @@ export default function MarketProfilePage() {
   useEffect(() => {
     const t = setTimeout(() => setCatalogDebouncedQuery(catalogQuery), 400);
     return () => clearTimeout(t);
+
+
   }, [catalogQuery]);
 
   const loadCatalog = useCallback(async (search: string) => {
@@ -524,21 +526,7 @@ export default function MarketProfilePage() {
                       ))}
                     </select>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      if (!marketId) {
-                        fetchMyMarket().then((m) => { setMarketId(m.id); setCurrencyOpen(true); }).catch(() => {});
-                      } else {
-                        setCurrencyOpen(true);
-                      }
-                    }}
-                    title="افزودن واحد پولی"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
+               
                 </div>
                 {fieldErrors.baseCurrency && (
                   <p className="text-xs text-destructive">{fieldErrors.baseCurrency}</p>
@@ -590,158 +578,7 @@ export default function MarketProfilePage() {
         </div>
       </form>
 
-      {/* Currency Modal */}
-      <Dialog open={currencyOpen} onOpenChange={setCurrencyOpen}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>افزودن واحد پولی</DialogTitle>
-            <DialogDescription>
-              واحد پولی مورد نظر را جستجو و به سیستم اضافه کنید
-            </DialogDescription>
-          </DialogHeader>
 
-          <div className="space-y-4">
-            {currencyFeedback && (
-              <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-700">
-                <Check className="h-4 w-4" />
-                {currencyFeedback}
-              </div>
-            )}
-
-            <div className="relative">
-              <Search className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="جستجو بر اساس کد یا نام..."
-                className="w-full pr-9"
-                value={catalogQuery}
-                onChange={(e) => setCatalogQuery(e.target.value)}
-              />
-            </div>
-
-            {catalogLoading ? (
-              <div className="flex items-center justify-center py-10">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : catalogError ? (
-              <div className="flex flex-col items-center gap-3 py-10 text-center">
-                <p className="text-sm text-muted-foreground">{catalogError}</p>
-                <Button variant="outline" size="sm" onClick={() => loadCatalog(catalogDebouncedQuery)}>
-                  تلاش مجدد
-                </Button>
-              </div>
-            ) : catalogItems.length === 0 ? (
-              <p className="py-10 text-center text-sm text-muted-foreground">واحد پولی‌ای یافت نشد</p>
-            ) : (
-              <>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-right">کد</TableHead>
-                      <TableHead className="text-right">نام</TableHead>
-                      <TableHead className="text-right">سیمبول</TableHead>
-                      <TableHead className="text-left">عملیات</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paginatedCatalog.map((item) => {
-                      const alreadyAdded = isAdded(item.code);
-                      return (
-                        <TableRow key={item.code} className="hover:bg-muted/40">
-                          <TableCell>
-                            <span className="inline-flex min-w-[52px] items-center rounded-md bg-muted px-2 py-0.5 font-mono text-xs font-semibold">
-                              {item.code}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">
-                                <Banknote className="h-3.5 w-3.5 text-muted-foreground" />
-                              </div>
-                              <span className="font-medium">{item.name}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {item.symbol ?? "—"}
-                          </TableCell>
-                          <TableCell className="text-left">
-                            <Button
-                              variant={alreadyAdded ? "secondary" : "default"}
-                              size="sm"
-                              disabled={alreadyAdded || addingCode === item.code}
-                              onClick={() => handleAddCurrency(item)}
-                            >
-                              {addingCode === item.code ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : alreadyAdded ? (
-                                <Check className="h-3.5 w-3.5" />
-                              ) : (
-                                <Plus className="h-3.5 w-3.5" />
-                              )}
-                              {alreadyAdded ? "اضافه شده" : "افزودن"}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-
-                {/* Pagination */}
-                {catalogTotalPages > 1 && (
-                  <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
-                    <p className="text-xs text-muted-foreground">
-                      صفحه {catalogPage.toLocaleString("fa-AF")} از{" "}
-                      {catalogTotalPages.toLocaleString("fa-AF")} —{" "}
-                      {catalogItems.length.toLocaleString("fa-AF")} مورد
-                    </p>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="outline"
-                        size="icon-sm"
-                        disabled={catalogPage === 1}
-                        onClick={() => setCatalogPage(1)}
-                      >
-                        <ChevronsRight className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon-sm"
-                        disabled={catalogPage === 1}
-                        onClick={() => setCatalogPage((p) => Math.max(1, p - 1))}
-                      >
-                        <ChevronRight className="h-3.5 w-3.5" />
-                      </Button>
-                      <span className="mx-1 min-w-[50px] text-center text-xs font-medium">
-                        {catalogPage.toLocaleString("fa-AF")} / {catalogTotalPages.toLocaleString("fa-AF")}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="icon-sm"
-                        disabled={catalogPage === catalogTotalPages}
-                        onClick={() => setCatalogPage((p) => Math.min(catalogTotalPages, p + 1))}
-                      >
-                        <ChevronLeft className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon-sm"
-                        disabled={catalogPage === catalogTotalPages}
-                        onClick={() => setCatalogPage(catalogTotalPages)}
-                      >
-                        <ChevronsLeft className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" />}>بستن</DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
