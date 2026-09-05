@@ -424,7 +424,7 @@ export default function AccountsPage() {
                 <Label htmlFor="account-currency">ارز حساب</Label>
                 <Select
                   value={form.currencyCode}
-                  onValueChange={(v) => setForm((f) => ({ ...f, currencyCode: v }))}
+                  onValueChange={(v) => setForm((f) => ({ ...f, currencyCode: v ?? "" }))}
                 >
                   <SelectTrigger id="account-currency">
                     <SelectValue />

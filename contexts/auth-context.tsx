@@ -31,6 +31,7 @@ interface AuthContextValue {
   login: (payload: LoginPayload) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -109,6 +110,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [router]
   );
 
+  const refreshUser = useCallback(async () => {
+    const currentUser = await fetchMe();
+    setUser(currentUser);
+  }, []);
+
   const logout = useCallback(async () => {
     setIsSubmitting(true);
     try {
@@ -125,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, isLoading, isSubmitting, login, register, logout }}
+      value={{ user, isLoading, isSubmitting, login, register, logout, refreshUser }}
     >
       {children}
     </AuthContext.Provider>

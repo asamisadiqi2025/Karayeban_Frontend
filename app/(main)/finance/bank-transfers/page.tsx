@@ -307,7 +307,7 @@ export default function AccountTransfersPage() {
             value={form.fromAccountId}
             onValueChange={(v) => {
               setSameAccountError(false);
-              setForm((f) => ({ ...f, fromAccountId: v }));
+              setForm((f) => ({ ...f, fromAccountId: v ?? "" }));
             }}
           >
             <SelectTrigger id="from-account" className="w-full">
@@ -331,7 +331,7 @@ export default function AccountTransfersPage() {
             value={form.toAccountId}
             onValueChange={(v) => {
               setSameAccountError(false);
-              setForm((f) => ({ ...f, toAccountId: v }));
+              setForm((f) => ({ ...f, toAccountId: v ?? "" }));
             }}
           >
             <SelectTrigger id="to-account" className="w-full">

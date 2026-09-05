@@ -1,5 +1,6 @@
 import { apiClient } from "@/services/client";
 import { setAccessToken, setRefreshToken } from "@/lib/client/auth/token-storage";
+import { fetchMyMarket } from "@/services/market.service";
 
 export interface AuthUser {
   id: string;
@@ -8,6 +9,7 @@ export interface AuthUser {
   email: string;
   role: string;
   orgId?: string;
+  marketId?: string;
   isSetupComplete: boolean;
 }
 
@@ -52,7 +54,7 @@ function normalizeUser(raw: any): AuthUser {
       raw.name?.split(" ").slice(1).join(" ") ??
       "",
     email: raw.email ?? "",
-    role: raw.role ?? raw.roleName ?? "user",
+    role: (raw.role ?? raw.roleName ?? "user").toLowerCase(),
     orgId: raw.orgId ?? raw.org_id ?? raw.organizationId,
     isSetupComplete: raw.isSetupComplete ?? raw.is_setup_complete ?? raw.setupComplete ?? false,
   };
@@ -99,5 +101,19 @@ export async function logoutRequest(): Promise<void> {
 // GET /auth/me — بازیابی پروفایل کامل کاربر با استفاده از access token
 export async function fetchMe(): Promise<AuthUser> {
   const { data } = await apiClient.get("/auth/me");
-  return normalizeUser(data);
+  const user = normalizeUser(data);
+
+  // اگر بک‌اند فیلد isSetupComplete را برنگرداند، آن را از مارکت جاری کاربر می‌خوانیم
+  // (GET /markets فیلد isSetupComplete مربوط به مارکت را برمی‌گرداند)
+  if (data.isSetupComplete === undefined && data.is_setup_complete === undefined && data.setupComplete === undefined) {
+    try {
+      const market = await fetchMyMarket();
+      user.marketId = market.id;
+      user.isSetupComplete = market.isSetupComplete;
+    } catch {
+      user.isSetupComplete = false;
+    }
+  }
+
+  return user;
 }
