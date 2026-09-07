@@ -104,7 +104,7 @@ apiClient.interceptors.response.use(
 export function extractApiErrorMessage(error: unknown, fallback = "خطایی رخ داد، لطفاً دوباره تلاش کنید"): string {
   if (axios.isAxiosError(error)) {
     const data = error.response?.data as { message?: string | string[] } | undefined;
-    if (Array.isArray(data?.message)) return data.message[0];
+    if (Array.isArray(data?.message)) return data.message.join("\n");
     if (typeof data?.message === "string") return data.message;
     if (error.code === "ERR_NETWORK") return "اتصال به سرور برقرار نشد";
   }
