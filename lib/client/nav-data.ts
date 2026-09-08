@@ -96,7 +96,7 @@ export const navSections: NavSection[] = [
         submenu: [
           {
             label: "اجاره دکان‌ها",
-            href: "/rent/shops",
+            href: "/shops",
           },
           {
             label: "اجاره واحدها",
