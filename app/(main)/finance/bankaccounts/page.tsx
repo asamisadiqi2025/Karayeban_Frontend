@@ -182,11 +182,17 @@ function AccountsPageContent() {
     setDialogOpen(true);
   }
 
-  async function handleDelete(id: string) {
-    setDeletingId(id);
+  async function handleDelete(account: BankAccount) {
+    if (account.openingBalance !== 0) {
+      toast.error(
+        "حذف حساب دارای مبلغ افتتاحیه مجاز نیست؛ ابتدا حساب را به موجودی صفر برسانید"
+      );
+      return;
+    }
+    setDeletingId(account.id);
     try {
-      await deleteBankAccount(id);
-      setAccounts((prev) => prev.filter((a) => a.id !== id));
+      await deleteBankAccount(account.id);
+      setAccounts((prev) => prev.filter((a) => a.id !== account.id));
       toast.success("حساب با موفقیت حذف شد");
     } catch (err) {
       toast.error(extractApiErrorMessage(err, "حذف حساب ناموفق بود"));
@@ -398,10 +404,15 @@ function AccountsPageContent() {
                           variant="ghost"
                           size="icon-sm"
                           className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          disabled={deletingId === account.id}
+                          disabled={deletingId === account.id || account.openingBalance !== 0}
+                          title={
+                            account.openingBalance !== 0
+                              ? "حذف حساب دارای افتتاحیه مجاز نیست"
+                              : "حذف حساب"
+                          }
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDelete(account.id);
+                            handleDelete(account);
                           }}
                         >
                           {deletingId === account.id ? (

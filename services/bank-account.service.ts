@@ -116,3 +116,81 @@ export async function deleteBankAccount(id: string): Promise<{ message: string }
   const { data } = await apiClient.delete<{ message: string }>(`/accounts/${id}`);
   return data;
 }
+
+/**
+ * انتقال وجه بین دو حساب
+ * POST /accounts/transfer
+ * body: { fromAccountId, toAccountId, amount }
+ * فقط بین دو حساب با ارز مشابه (هم‌نوع) مجاز است
+ */
+export async function transferBetweenAccounts(payload: {
+  fromAccountId: string;
+  toAccountId: string;
+  amount: number;
+  exchangeRate?: number;
+}): Promise<{ message?: string }> {
+  const { data } = await apiClient.post<{ message?: string }>("/accounts/transfer", payload);
+  return data ?? {};
+}
+
+export interface TransferRecord {
+  id: string;
+  fromAccountId: string;
+  toAccountId: string;
+  amount: number;
+  exchangeRate?: number;
+  createdAt: number;
+}
+
+interface RawTransfer {
+  id?: string;
+  _id?: string;
+  from?: string;
+  from_account_id?: string;
+  fromAccountId?: string;
+  to?: string;
+  to_account_id?: string;
+  toAccountId?: string;
+  amount?: unknown;
+  exchangeRate?: unknown;
+  exchange_rate?: unknown;
+  createdAt?: unknown;
+  created_at?: unknown;
+  createdDate?: unknown;
+  date?: unknown;
+}
+
+function toTimestamp(value: unknown): number {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const num = Number(value);
+    if (Number.isFinite(num)) return num;
+    const parsed = Date.parse(value);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  return 0;
+}
+
+function normalizeTransfer(raw: RawTransfer): TransferRecord {
+  const amount = toNumber(raw.amount);
+  const exchangeRate = toNumber(raw.exchangeRate ?? raw.exchange_rate);
+  return {
+    id: raw.id ?? raw._id ?? "",
+    fromAccountId: raw.fromAccountId ?? raw.from_account_id ?? raw.from ?? "",
+    toAccountId: raw.toAccountId ?? raw.to_account_id ?? raw.to ?? "",
+    amount,
+    ...(exchangeRate > 0 ? { exchangeRate } : {}),
+    createdAt:
+      toTimestamp(raw.createdAt ?? raw.created_at ?? raw.createdDate ?? raw.date) || Date.now(),
+  };
+}
+
+/**
+ * دریافت فهرست انتقال‌های انجام‌شده
+ * پاسخ: { data: Transfer[], meta }
+ */
+export async function fetchTransfers(): Promise<TransferRecord[]> {
+  const { data } = await apiClient.get("/accounts/transfer");
+  const items = Array.isArray(data) ? data : data?.data ?? data?.results ?? [];
+  return items.map(normalizeTransfer);
+}
