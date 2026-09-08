@@ -1,23 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Plus, Search, Pencil, Trash2, Layers } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Plus, Search, Pencil, Trash2, Layers, Loader2 } from "lucide-react";
 
 import { PageHeader } from "@/components/server/dashboard/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -36,111 +27,175 @@ import {
   TableCell,
 } from "@/components/ui/table";
 
-type FloorStatus = "active" | "inactive";
-
-interface Floor {
-  id: string;
-  number: string;
-  name: string;
-  status: FloorStatus;
-  details: string;
-}
-
-const initialFloors: Floor[] = [
-  {
-    id: "FLR-01",
-    number: "0",
-    name: "همکف",
-    status: "active",
-    details: "طبقه همکف، ورودی اصلی مارکت",
-  },
-  {
-    id: "FLR-02",
-    number: "1",
-    name: "طبقه اول",
-    status: "active",
-    details: "دکان‌های پوشاک و لوازم خانگی",
-  },
-  {
-    id: "FLR-03",
-    number: "2",
-    name: "طبقه دوم",
-    status: "active",
-    details: "",
-  },
-  {
-    id: "FLR-04",
-    number: "3",
-    name: "طبقه سوم",
-    status: "inactive",
-    details: "در حال بازسازی",
-  },
-];
+import {
+  fetchFloors,
+  createFloor,
+  updateFloor,
+  deleteFloor,
+  type Floor,
+} from "@/services/floor.service";
+import { extractApiErrorMessage } from "@/services/client";
+import { fetchMyMarket } from "@/services/market.service";
+import { ToastProvider, useToast } from "@/components/client/toast";
+import { useAuth } from "@/contexts/auth-context";
 
 const emptyForm = {
-  number: "",
+  floorNumber: "",
   name: "",
-  status: "active" as FloorStatus,
   details: "",
 };
 
 export default function FloorsPage() {
-  const [floors, setFloors] = useState<Floor[]>(initialFloors);
+  return (
+    <ToastProvider>
+      <FloorsPageContent />
+    </ToastProvider>
+  );
+}
+
+function FloorsPageContent() {
+  const toast = useToast();
+  const { user } = useAuth();
+  const [floors, setFloors] = useState<Floor[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<"all" | FloorStatus>("all");
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await fetchFloors();
+      setFloors(Array.isArray(result) ? result : []);
+    } catch (err) {
+      setError(extractApiErrorMessage(err, "خطا در دریافت طبقات"));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchFloors()
+      .then((result) => {
+        if (cancelled) return;
+        setFloors(Array.isArray(result) ? result : []);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(extractApiErrorMessage(err, "خطا در دریافت طبقات"));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     return floors.filter((f) => {
-      const matchesFilter = filter === "all" || f.status === filter;
       const matchesQuery =
         query.trim() === "" ||
         f.name.includes(query) ||
-        f.number.includes(query);
-      return matchesFilter && matchesQuery;
+        String(f.floorNumber).includes(query);
+      return matchesQuery;
     });
-  }, [floors, query, filter]);
+  }, [floors, query]);
 
   function openCreateDialog() {
     setEditingId(null);
     setForm(emptyForm);
+    setFormError(null);
     setDialogOpen(true);
   }
 
   function openEditDialog(floor: Floor) {
     setEditingId(floor.id);
     setForm({
-      number: floor.number,
+      floorNumber: String(floor.floorNumber),
       name: floor.name,
-      status: floor.status,
       details: floor.details,
     });
+    setFormError(null);
     setDialogOpen(true);
   }
 
-  function handleDelete(id: string) {
-    setFloors((prev) => prev.filter((f) => f.id !== id));
+  async function handleDelete(floor: Floor) {
+    setDeletingId(floor.id);
+    try {
+      await deleteFloor(floor.id);
+      setFloors((prev) => prev.filter((f) => f.id !== floor.id));
+      toast.success("طبقه با موفقیت حذف شد");
+    } catch (err) {
+      toast.error(extractApiErrorMessage(err, "حذف طبقه ناموفق بود"));
+    } finally {
+      setDeletingId(null);
+    }
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setFormError(null);
 
-    if (editingId) {
-      setFloors((prev) =>
-        prev.map((f) => (f.id === editingId ? { ...f, ...form } : f)),
-      );
-    } else {
-      const newFloor: Floor = {
-        id: `FLR-${String(floors.length + 1).padStart(2, "0")}`,
-        ...form,
-      };
-      setFloors((prev) => [newFloor, ...prev]);
+    const floorNumber = Number(form.floorNumber);
+    if (!Number.isInteger(floorNumber)) {
+      setFormError("شماره طبقه باید عدد صحیح باشد");
+      return;
+    }
+    if (!form.name.trim()) {
+      setFormError("نام طبقه الزامی است");
+      return;
     }
 
-    setDialogOpen(false);
+    let marketId = user?.marketId;
+    if (!marketId) {
+      if (!editingId) {
+        try {
+          const market = await fetchMyMarket();
+          marketId = market.id;
+        } catch {
+          setFormError("شناسه مارکت یافت نشد");
+          return;
+        }
+      }
+    }
+
+    const basePayload = {
+      floorNumber,
+      name: form.name.trim(),
+      details: form.details.trim(),
+    };
+
+    setSaving(true);
+    try {
+      if (editingId) {
+        const updated = await updateFloor(editingId, basePayload);
+        setFloors((prev) =>
+          prev.map((f) => (f.id === editingId ? updated : f)),
+        );
+        toast.success("طبقه با موفقیت بروزرسانی شد");
+      } else {
+        const created = await createFloor({
+          ...basePayload,
+          marketId: marketId!,
+        });
+        setFloors((prev) => [created, ...prev]);
+        toast.success("طبقه جدید با موفقیت ثبت شد");
+      }
+      setDialogOpen(false);
+    } catch (err) {
+      toast.error(extractApiErrorMessage(err, "ثبت طبقه ناموفق بود"));
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -159,7 +214,14 @@ export default function FloorsPage() {
       <Card className="p-0">
         <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-sm font-semibold text-foreground">همه طبقات</h2>
+            <h2 className="text-sm font-semibold text-foreground">
+              همه طبقات
+              {!loading && (
+                <span className="mr-1.5 text-xs font-normal text-muted-foreground">
+                  ({filtered.length.toLocaleString("fa-AF")} مورد)
+                </span>
+              )}
+            </h2>
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -172,17 +234,6 @@ export default function FloorsPage() {
                 onChange={(e) => setQuery(e.target.value)}
               />
             </div>
-
-            <Tabs
-              value={filter}
-              onValueChange={(v) => setFilter(v as typeof filter)}
-            >
-              <TabsList>
-                <TabsTrigger value="all">همه</TabsTrigger>
-                <TabsTrigger value="active">فعال</TabsTrigger>
-                <TabsTrigger value="inactive">غیرفعال</TabsTrigger>
-              </TabsList>
-            </Tabs>
           </div>
         </div>
 
@@ -192,193 +243,201 @@ export default function FloorsPage() {
               <TableHead>شماره طبقه</TableHead>
               <TableHead>نام طبقه</TableHead>
               <TableHead>جزییات</TableHead>
-              <TableHead>وضعیت</TableHead>
               <TableHead className="text-left">عملیات</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map((floor) => (
-              <TableRow
-                key={floor.id}
-                className="cursor-pointer"
-                onClick={() => openEditDialog(floor)}
-              >
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">
-                      <Layers className="h-3.5 w-3.5 text-muted-foreground" />
-                    </div>
-                    <span className="font-medium text-foreground">
-                      {floor.number}
-                    </span>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={4} className="py-10">
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <span className="text-sm">در حال بارگذاری...</span>
                   </div>
                 </TableCell>
-                <TableCell className="font-medium text-foreground">
-                  {floor.name}
-                </TableCell>
-                <TableCell className="max-w-[280px] truncate text-muted-foreground">
-                  {floor.details || "—"}
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant={
-                      floor.status === "active" ? "success" : "secondary"
-                    }
-                  >
-                    {floor.status === "active" ? "فعال" : "غیرفعال"}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-left">
-                  <div className="flex items-center justify-end gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openEditDialog(floor);
-                      }}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(floor.id);
-                      }}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
+              </TableRow>
+            ) : error ? (
+              <TableRow>
+                <TableCell colSpan={4} className="py-10">
+                  <div className="flex flex-col items-center gap-3 text-center">
+                    <p className="text-sm text-muted-foreground">{error}</p>
+                    <Button variant="outline" size="sm" onClick={load}>
+                      تلاش مجدد
                     </Button>
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
-
-            {filtered.length === 0 && (
+            ) : filtered.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={4}
                   className="py-10 text-center text-muted-foreground"
                 >
                   طبقه‌ای یافت نشد
                 </TableCell>
               </TableRow>
+            ) : (
+              filtered.map((floor) => (
+                <TableRow
+                  key={floor.id}
+                  className="cursor-pointer hover:bg-muted/40"
+                  onClick={() => openEditDialog(floor)}
+                >
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">
+                        <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+                      </div>
+                      <span className="font-medium text-foreground" dir="ltr">
+                        {floor.floorNumber}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-medium text-foreground">
+                    {floor.name}
+                  </TableCell>
+                  <TableCell className="max-w-[280px] truncate text-muted-foreground">
+                    {floor.details || "—"}
+                  </TableCell>
+                  <TableCell className="text-left">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEditDialog(floor);
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        disabled={deletingId === floor.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(floor);
+                        }}
+                      >
+                        {deletingId === floor.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
             )}
           </TableBody>
         </Table>
       </Card>
 
       {/* مودال افزودن / ویرایش طبقه */}
-    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-  <DialogContent className="sm:max-w-[600px]">
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <DialogHeader className="text-right">
-        <DialogTitle>
-          {editingId ? "ویرایش طبقه" : "افزودن طبقه جدید"}
-        </DialogTitle>
-        <DialogDescription>
-          اطلاعات طبقه را وارد کنید
-        </DialogDescription>
-      </DialogHeader>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <DialogHeader className="text-right">
+              <DialogTitle>
+                {editingId ? "ویرایش طبقه" : "افزودن طبقه جدید"}
+              </DialogTitle>
+              <DialogDescription>
+                اطلاعات طبقه را وارد کنید
+              </DialogDescription>
+            </DialogHeader>
 
-      <div className="space-y-5">
-        {/* شماره طبقه و نام طبقه */}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <div className="space-y-2 text-right">
-            <Label htmlFor="floor-number">شماره طبقه</Label>
-            <Input
-              id="floor-number"
-              dir="ltr"
-              placeholder="مثلاً: 0"
-              value={form.number}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  number: e.target.value,
-                }))
-              }
-              required
-            />
-          </div>
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                <div className="space-y-2 text-right">
+                  <Label htmlFor="floor-number">شماره طبقه</Label>
+                  <Input
+                    id="floor-number"
+                    type="number"
+                    step="1"
+                    min="0"
+                    dir="ltr"
+                    placeholder="مثلاً: 0"
+                    value={form.floorNumber}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        floorNumber: e.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </div>
 
-          <div className="space-y-2 text-right">
-            <Label htmlFor="floor-name">نام طبقه</Label>
-            <Input
-              id="floor-name"
-              placeholder="مثلاً: همکف"
-              value={form.name}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  name: e.target.value,
-                }))
-              }
-              required
-            />
-          </div>
-        </div>
+                <div className="space-y-2 text-right">
+                  <Label htmlFor="floor-name">نام طبقه</Label>
+                  <Input
+                    id="floor-name"
+                    placeholder="مثلاً: همکف"
+                    value={form.name}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        name: e.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </div>
+              </div>
 
-        {/* وضعیت */}
-        <div className="space-y-2 text-right">
-          <Label htmlFor="floor-status">وضعیت</Label>
+              <div className="space-y-2 text-right">
+                <Label htmlFor="floor-details">جزییات</Label>
 
-          <Select
-            value={form.status}
-            onValueChange={(v) =>
-              setForm((f) => ({
-                ...f,
-                status: v as FloorStatus,
-              }))
-            }
-          >
-            <SelectTrigger id="floor-status" className="w-full">
-              <SelectValue placeholder="انتخاب وضعیت" />
-            </SelectTrigger>
+                <Textarea
+                  id="floor-details"
+                  rows={4}
+                  placeholder="توضیحات تکمیلی درباره این طبقه"
+                  value={form.details}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      details: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+            </div>
 
-            <SelectContent>
-              <SelectItem value="active">فعال</SelectItem>
-              <SelectItem value="inactive">غیرفعال</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+            {formError && (
+              <p className="whitespace-pre-line text-sm text-destructive">
+                {formError}
+              </p>
+            )}
 
-        {/* جزییات */}
-        <div className="space-y-2 text-right">
-          <Label htmlFor="floor-details">جزییات</Label>
+            <DialogFooter className="gap-2 sm:gap-2">
+              <DialogClose
+                render={
+                  <Button type="button" variant="outline">
+                    انصراف
+                  </Button>
+                }
+              />
 
-          <Textarea
-            id="floor-details"
-            rows={4}
-            placeholder="توضیحات تکمیلی درباره این طبقه"
-            value={form.details}
-            onChange={(e) =>
-              setForm((f) => ({
-                ...f,
-                details: e.target.value,
-              }))
-            }
-          />
-        </div>
-      </div>
-
-      <DialogFooter className="gap-2 sm:gap-2">
-        <DialogClose
-          render={
-            <Button type="button" variant="outline">
-              انصراف
-            </Button>
-          }
-        />
-
-        <Button type="submit">
-          {editingId ? "ذخیره تغییرات" : "افزودن طبقه"}
-        </Button>
-      </DialogFooter>
-    </form>
-  </DialogContent>
-</Dialog>
+              <Button type="submit" disabled={saving}>
+                {saving && (
+                  <Loader2
+                    data-icon="inline-start"
+                    className="animate-spin"
+                  />
+                )}
+                {saving
+                  ? "در حال ذخیره..."
+                  : editingId
+                    ? "ذخیره تغییرات"
+                    : "افزودن طبقه"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
