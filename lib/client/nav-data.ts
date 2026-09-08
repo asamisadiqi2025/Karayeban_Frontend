@@ -149,8 +149,12 @@ export const navSections: NavSection[] = [
             href: "/finance/bankaccounts",
           },
           {
-            label: "انتقال بانکی",
+            label: " انتقال بانکی واحدات یکسان",
             href: "/finance/bank-transfers",
+          },
+          {
+            label: "انتقال بانکی واحدات متفاوت",
+            href: "/finance/bank-transfers-different-units",
           },
           {
             label: "تراکنش‌ها",
