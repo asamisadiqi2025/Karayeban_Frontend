@@ -404,7 +404,7 @@ function AccountsPageContent() {
                           variant="ghost"
                           size="icon-sm"
                           className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          disabled={deletingId === account.id || account.openingBalance !== 0}
+                          disabled={deletingId === account.id}
                           title={
                             account.openingBalance !== 0
                               ? "حذف حساب دارای افتتاحیه مجاز نیست"
