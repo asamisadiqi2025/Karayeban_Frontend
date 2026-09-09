@@ -228,10 +228,10 @@ function GuarantorsPageContent() {
         <Table>
           <TableHeader >
             <TableRow className="">
-              <TableHead>نام ضامن</TableHead>
-              <TableHead>شماره تماس</TableHead>
-              <TableHead>شماره تذکره</TableHead>
-              <TableHead>توضیحات</TableHead>
+              <TableHead className="text-right pr-5">نام ضامن</TableHead>
+              <TableHead className="text-right">شماره تماس</TableHead>
+              <TableHead className="text-right">شماره تذکره</TableHead>
+              <TableHead className="text-right">توضیحات</TableHead>
               <TableHead className="text-left">عملیات</TableHead>
             </TableRow>
           </TableHeader>
@@ -272,7 +272,7 @@ function GuarantorsPageContent() {
                   className="cursor-pointer hover:bg-muted/40"
                   onClick={() => openEditDialog(guarantor)}
                 >
-                  <TableCell>
+                  <TableCell className="text-right">
                     <div className="flex items-center gap-2">
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">
                         <UserCheck className="h-3.5 w-3.5 text-muted-foreground" />
@@ -282,13 +282,19 @@ function GuarantorsPageContent() {
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell dir="ltr" className="text-muted-foreground">
+                  <TableCell
+                    dir="ltr"
+                    className="text-right text-muted-foreground"
+                  >
                     {guarantor.contact}
                   </TableCell>
-                  <TableCell dir="ltr" className="text-muted-foreground">
+                  <TableCell
+                    dir="ltr"
+                    className="text-right text-muted-foreground"
+                  >
                     {guarantor.idNumber}
                   </TableCell>
-                  <TableCell className="max-w-[280px] truncate text-muted-foreground">
+                  <TableCell className="max-w-[280px] truncate text-right text-muted-foreground">
                     {guarantor.details || "—"}
                   </TableCell>
                   <TableCell className="text-left">
