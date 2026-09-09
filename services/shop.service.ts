@@ -29,6 +29,7 @@ export interface Shop {
   area: number;
   location: string;
   details: string;
+  name?: string;
 }
 
 interface RawShop {
@@ -43,6 +44,9 @@ interface RawShop {
   location?: string;
   details?: string;
   description?: string;
+  name?: string;
+  shopName?: string;
+  shop_name?: string;
 }
 
 function toNumber(value: unknown): number {
@@ -68,6 +72,7 @@ function normalizeShop(raw: RawShop): Shop {
     area: toNumber(raw.area),
     location: raw.location ?? "",
     details: raw.details ?? raw.description ?? "",
+    name: raw.name ?? raw.shopName ?? raw.shop_name ?? undefined,
   };
 }
 
