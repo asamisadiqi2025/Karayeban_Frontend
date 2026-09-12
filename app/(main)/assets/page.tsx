@@ -50,6 +50,7 @@ import {
   fetchAddedCurrencies,
   type AddedCurrency,
 } from "@/services/currency.service";
+import { fetchMyMarket } from "@/services/market.service";
 import { extractApiErrorMessage } from "@/services/client";
 import { ToastProvider, useToast } from "@/components/client/toast";
 
@@ -97,6 +98,7 @@ function AssetsPageContent() {
   const toast = useToast();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [currencies, setCurrencies] = useState<AddedCurrency[]>([]);
+  const [marketId, setMarketId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -112,9 +114,10 @@ function AssetsPageContent() {
     setLoading(true);
     setError(null);
     try {
-      const [assetsResult, currenciesResult] = await Promise.allSettled([
+      const [assetsResult, currenciesResult, marketResult] = await Promise.allSettled([
         fetchAssets(),
         fetchAddedCurrencies(),
+        fetchMyMarket(),
       ]);
       setAssets(
         assetsResult.status === "fulfilled"
@@ -126,6 +129,9 @@ function AssetsPageContent() {
           ? (Array.isArray(currenciesResult.value) ? currenciesResult.value : [])
           : [],
       );
+      if (marketResult.status === "fulfilled" && marketResult.value?.id) {
+        setMarketId(marketResult.value.id);
+      }
       if (assetsResult.status === "rejected") {
         setError(extractApiErrorMessage(assetsResult.reason, "خطا در دریافت دارایی‌ها"));
       }
@@ -136,8 +142,8 @@ function AssetsPageContent() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.allSettled([fetchAssets(), fetchAddedCurrencies()]).then(
-      ([assetsResult, currenciesResult]) => {
+    Promise.allSettled([fetchAssets(), fetchAddedCurrencies(), fetchMyMarket()]).then(
+      ([assetsResult, currenciesResult, marketResult]) => {
         if (cancelled) return;
         setAssets(
           assetsResult.status === "fulfilled"
@@ -149,6 +155,9 @@ function AssetsPageContent() {
             ? (Array.isArray(currenciesResult.value) ? currenciesResult.value : [])
             : [],
         );
+        if (marketResult.status === "fulfilled" && marketResult.value?.id) {
+          setMarketId(marketResult.value.id);
+        }
         if (assetsResult.status === "rejected") {
           setError(
             extractApiErrorMessage(assetsResult.reason, "خطا در دریافت دارایی‌ها"),
@@ -260,7 +269,10 @@ function AssetsPageContent() {
         setAssets((prev) => prev.map((a) => (a.id === editingId ? updated : a)));
         toast.success("دارایی با موفقیت بروزرسانی شد");
       } else {
-        const created = await createAsset(basePayload);
+        const created = await createAsset({
+          ...basePayload,
+          ...(marketId ? { marketId } : {}),
+        });
         setAssets((prev) => [created, ...prev]);
         toast.success("دارایی جدید با موفقیت ثبت شد");
       }

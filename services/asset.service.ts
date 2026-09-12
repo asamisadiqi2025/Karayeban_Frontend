@@ -8,6 +8,7 @@ export interface CreateAssetPayload {
   lifespanYears: number;
   purchaseDate: string;
   details?: string;
+  marketId?: string;
 }
 
 export interface UpdateAssetPayload {
@@ -18,6 +19,7 @@ export interface UpdateAssetPayload {
   lifespanYears?: number;
   purchaseDate?: string;
   details?: string;
+  marketId?: string;
 }
 
 export interface Asset {
@@ -29,6 +31,7 @@ export interface Asset {
   lifespanYears: number;
   purchaseDate: string;
   details: string;
+  marketId: string;
 }
 
 interface RawAsset {
@@ -46,6 +49,8 @@ interface RawAsset {
   purchase_date?: string;
   details?: string;
   description?: string;
+  marketId?: string;
+  market_id?: string;
 }
 
 function toNumber(value: unknown): number {
@@ -63,6 +68,7 @@ function normalizeAsset(raw: RawAsset): Asset {
     lifespanYears: toNumber(raw.lifespanYears ?? raw.lifespan_years),
     purchaseDate: raw.purchaseDate ?? raw.purchase_date ?? "",
     details: raw.details ?? raw.description ?? "",
+    marketId: raw.marketId ?? raw.market_id ?? "",
   };
 }
 
