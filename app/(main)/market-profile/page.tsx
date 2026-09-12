@@ -47,7 +47,7 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { createMarket, updateMarketProfile, fetchMyMarket, type UpdateMarketProfilePayload } from "@/services/market.service";
+import { createMarket, updateMarketProfile, fetchMyMarket } from "@/services/market.service";
 import {
   fetchCurrencyCatalog,
   fetchAddedCurrencies,
@@ -92,7 +92,6 @@ export default function MarketProfilePage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [marketId, setMarketId] = useState<string | null>(null);
-  const [marketBaseCurrencyId, setMarketBaseCurrencyId] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
 
   function validate(): boolean {
@@ -128,9 +127,9 @@ export default function MarketProfilePage() {
     //   errors.subdomain = "ساب‌دامنه فقط شامل حروف کوچک انگلیسی، عدد و خط تیره باشد";
     // }
 
-    if (!form.baseCurrency) {
-      errors.baseCurrency = "انتخاب ارز پایه الزامی است";
-    }
+    // if (!form.baseCurrency) {
+    //   errors.baseCurrency = "انتخاب ارز پایه الزامی است";
+    // }
 
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
@@ -161,8 +160,6 @@ export default function MarketProfilePage() {
       .then((m) => {
         if (cancelled) return;
         setMarketId(m.id);
-        setMarketBaseCurrencyId(m.baseCurrencyId);
-        if (m.logo) setLogoPreview(m.logo);
         setForm((prev) => ({
           ...prev,
           nameFa: m.name ?? "",
@@ -182,23 +179,11 @@ export default function MarketProfilePage() {
     let cancelled = false;
     setCurrenciesLoading(true);
     fetchAddedCurrencies()
-      .then((res) => {
-        if (cancelled) return;
-        const items = Array.isArray(res) ? res : [];
-        setAddedCurrencies(items);
-        // if the market already has a base currency (baseCurrencyId),
-        // preselect its code so the dropdown shows the stored value
-        if (marketBaseCurrencyId) {
-          const matched = items.find((c) => c.id === marketBaseCurrencyId);
-          if (matched) {
-            setForm((prev) => ({ ...prev, baseCurrency: matched.code }));
-          }
-        }
-      })
+      .then((res) => { if (!cancelled) setAddedCurrencies(Array.isArray(res) ? res : []); })
       .catch(() => { if (!cancelled) setAddedCurrencies([]); })
       .finally(() => { if (!cancelled) setCurrenciesLoading(false); });
     return () => { cancelled = true; };
-  }, [marketBaseCurrencyId]);
+  }, []);
 
   function handleChange(field: keyof MarketProfileForm) {
     return (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -217,12 +202,11 @@ export default function MarketProfilePage() {
 
     setLogoFile(file);
     setSaved(false);
-    // تبدیل به Data URL تا هم برای پیش‌نمایش و هم برای ذخیره در بک‌اند قابل استفاده باشد
-    const reader = new FileReader();
-    reader.onload = () => {
-      setLogoPreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    const url = URL.createObjectURL(file);
+    setLogoPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return url;
+    });
     if (fieldErrors.logo) {
       setFieldErrors((prev) => ({ ...prev, logo: undefined }));
     }
@@ -230,7 +214,10 @@ export default function MarketProfilePage() {
 
   function handleRemoveLogo() {
     setLogoFile(null);
-    setLogoPreview(null);
+    setLogoPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -247,21 +234,17 @@ export default function MarketProfilePage() {
       const common = {
         name: form.nameFa,
         address: form.address,
-        logo: logoPreview ?? "",
+        logo: "",
         phone: form.phone,
         email: form.email,
       };
 
       if (marketId) {
-        const updatePayload: UpdateMarketProfilePayload = {
+        await updateMarketProfile(marketId, {
           ...common,
+          baseCurrency: form.baseCurrency,
           details: form.details,
-        };
-        // ارز پایه فقط در تنظیم اولیه قابل تعیین است و بعداً قابل تغییر نیست
-        if (!marketBaseCurrencyId) {
-          updatePayload.baseCurrency = form.baseCurrency;
-        }
-        await updateMarketProfile(marketId, updatePayload);
+        });
         setSaved(true);
       } else {
         const result = await createMarket({
