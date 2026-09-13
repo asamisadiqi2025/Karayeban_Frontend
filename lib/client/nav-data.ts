@@ -52,10 +52,10 @@ export const navSections: NavSection[] = [
         href: "/properties",
         icon: Building2,
         submenu: [
-          {
-            label: "املاک و طبقات",
-            href: "/properties",
-          },
+          // {
+          //   label: "املاک و طبقات",
+          //   href: "/properties",
+          // },
           {
             label: "دکان‌ها، واحدها و بساط‌ها",
             href: "/properties/units",
@@ -95,7 +95,7 @@ export const navSections: NavSection[] = [
         icon: ReceiptText,
         submenu: [
           {
-            label: "اجاره دکان‌ها",
+            label: "اجاره دکان‌هاو واحدها",
             href: "/shops",
           },
           {
