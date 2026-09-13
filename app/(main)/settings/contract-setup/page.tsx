@@ -88,7 +88,7 @@ const CLAUSES: string[] = [
 
 function Blank({ value }: { value: string }) {
   return (
-    <span className="border-b-[1.5px] border-b-neutral-400 px-0.5 font-semibold text-neutral-900">
+    <span dir="ltr" className="border-b-[1.5px] border-b-neutral-400 px-0.5 font-semibold text-neutral-900">
       {value.trim() !== "" ? value : "\u00A0"}
     </span>
   );
