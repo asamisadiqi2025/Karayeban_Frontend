@@ -1,14 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Plus, Search, ArrowLeftRight, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Plus, ArrowLeftRight, Loader2 } from "lucide-react";
 
 import { PageHeader } from "@/components/server/dashboard/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -34,30 +33,32 @@ import {
   TableCell,
 } from "@/components/ui/table";
 
-import { fetchBankAccounts, type BankAccount } from "@/services/bank-account.service";
 import {
-  transferBetweenAccounts,
+  fetchBankAccounts,
   fetchTransfers,
-  type TransferResult,
-} from "@/services/account-transfer.service";
+  transferBetweenAccounts,
+  type BankAccount,
+  type TransferRecord,
+} from "@/services/bank-account.service";
 import { extractApiErrorMessage } from "@/services/client";
 import { ToastProvider, useToast } from "@/components/client/toast";
-import type { Currency } from "../bankaccounts/types";
-import { fetchAddedCurrencies, type AddedCurrency } from "@/services/currency.service";
 
 function toNumber(value: string): number {
   const parsed = Number.parseFloat(value);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function toCurrency(currency: AddedCurrency): Currency {
-  return {
-    id: currency.id,
-    code: currency.code,
-    name: currency.name,
-    symbol: currency.symbol ?? null,
-  };
+function formatAmount(amount: number, currencyCode?: string) {
+  const value = amount.toLocaleString("fa-IR");
+  return currencyCode ? `${value} ${currencyCode}` : value;
 }
+
+const emptyForm = {
+  fromAccountId: "",
+  toAccountId: "",
+  amount: "",
+  exchangeRate: "",
+};
 
 export default function AccountTransfersPage() {
   return (
@@ -69,145 +70,151 @@ export default function AccountTransfersPage() {
 
 function AccountTransfersPageContent() {
   const toast = useToast();
-
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
-  const [currencies, setCurrencies] = useState<Currency[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadingAccounts, setLoadingAccounts] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [fromAccountId, setFromAccountId] = useState("");
-  const [toAccountId, setToAccountId] = useState("");
-  const [amount, setAmount] = useState("");
-  const [description, setDescription] = useState("");
+  const [transfers, setTransfers] = useState<TransferRecord[]>([]);
+  const [loadingTransfers, setLoadingTransfers] = useState(true);
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [sameAccountError, setSameAccountError] = useState(false);
-  const [currencyMismatch, setCurrencyMismatch] = useState(false);
-  const [transfers, setTransfers] = useState<TransferResult[]>([]);
 
-  const loadData = useCallback(async () => {
-    const [accountsResult, currenciesResult, transfersResult] = await Promise.allSettled([
-      fetchBankAccounts(),
-      fetchAddedCurrencies(),
-      fetchTransfers(),
-    ]);
-    if (accountsResult.status === "fulfilled") {
-      setAccounts(Array.isArray(accountsResult.value) ? accountsResult.value : []);
-    } else {
-      setLoadError(extractApiErrorMessage(accountsResult.reason, "خطا در دریافت حساب‌ها"));
-    }
-    setCurrencies(
-      currenciesResult.status === "fulfilled"
-        ? (Array.isArray(currenciesResult.value) ? currenciesResult.value : []).map(toCurrency)
-        : []
-    );
-    if (transfersResult.status === "fulfilled") {
-      setTransfers(transfersResult.value);
+  const load = useCallback(async () => {
+    setLoadingAccounts(true);
+    setError(null);
+    try {
+      const [accountsResult, transfersResult] = await Promise.all([
+        fetchBankAccounts(),
+        fetchTransfers(),
+      ]);
+      setAccounts(Array.isArray(accountsResult) ? accountsResult : []);
+      setTransfers(Array.isArray(transfersResult) ? transfersResult : []);
+    } catch (err) {
+      setError(extractApiErrorMessage(err, "خطا در دریافت حساب‌ها"));
+    } finally {
+      setLoadingAccounts(false);
+      setLoadingTransfers(false);
     }
   }, []);
 
   useEffect(() => {
     let cancelled = false;
-    loadData().finally(() => {
-      if (!cancelled) setLoading(false);
-    });
+    fetchBankAccounts()
+      .then((result) => {
+        if (cancelled) return;
+        setAccounts(Array.isArray(result) ? result : []);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(extractApiErrorMessage(err, "خطا در دریافت حساب‌ها"));
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingAccounts(false);
+      });
     return () => {
       cancelled = true;
     };
-  }, [loadData]);
+  }, []);
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    setLoadError(null);
-    try {
-      await loadData();
-    } finally {
-      setLoading(false);
-    }
-  }, [loadData]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchTransfers()
+      .then((result) => {
+        if (cancelled) return;
+        setTransfers(Array.isArray(result) ? result : []);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(extractApiErrorMessage(err, "خطا در دریافت انتقال‌ها"));
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingTransfers(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  function getCurrency(id: string): Currency | undefined {
-    return currencies.find((c) => c.id === id);
-  }
+  const fromAccount = accounts.find((a) => a.id === form.fromAccountId);
+  const toAccount = accounts.find((a) => a.id === form.toAccountId);
 
-  function getAccount(id: string): BankAccount | undefined {
-    return accounts.find((a) => a.id === id);
-  }
+  // مقصد می‌تواند هر حسابی به‌جز حساب مبدأ باشد
+  const toCandidates = useMemo(
+    () => accounts.filter((a) => a.id !== fromAccount?.id),
+    [accounts, fromAccount],
+  );
 
-  const fromAccount = getAccount(fromAccountId);
-  const toAccount = getAccount(toAccountId);
-  const fromCurrency = fromAccount ? getCurrency(fromAccount.currencyId) : undefined;
-  const toCurrencySel = toAccount ? getCurrency(toAccount.currencyId) : undefined;
-
-  // حساب‌های دارای ارز یکسان با حساب مبدأ (برای فیلتر «حساب مقصد»)
-  const sameCurrencyAccounts = fromAccount
-    ? accounts.filter((a) => a.id !== fromAccount.id && a.currencyId === fromAccount.currencyId)
-    : [];
+  // در صورت انتقال بین دو ارز، نرخ ارز الزامی است
+  const needsExchangeRate =
+    !!fromAccount &&
+    !!toAccount &&
+    fromAccount.currencyId !== toAccount.currencyId;
 
   function openCreateDialog() {
-    setFromAccountId("");
-    setToAccountId("");
-    setAmount("");
-    setDescription("");
-    setSameAccountError(false);
-    setCurrencyMismatch(false);
+    setForm(emptyForm);
     setFormError(null);
     setDialogOpen(true);
-  }
-
-  function handleFromChange(value: string | null) {
-    setFromAccountId(value ?? "");
-    setSameAccountError(false);
-    setCurrencyMismatch(false);
-    setToAccountId("");
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormError(null);
-    setSameAccountError(false);
-    setCurrencyMismatch(false);
 
-    if (!fromAccountId || !toAccountId) {
-      setFormError("حساب مبدأ و مقصد را انتخاب کنید");
+    if (!form.fromAccountId || !form.toAccountId) {
+      setFormError("انتخاب حساب مبدأ و مقصد الزامی است");
       return;
     }
-    if (fromAccountId === toAccountId) {
-      setSameAccountError(true);
+    if (form.fromAccountId === form.toAccountId) {
+      setFormError("حساب مبدأ و مقصد نمی‌توانند یکسان باشند");
       return;
     }
-    if (fromAccount && toAccount && fromAccount.currencyId !== toAccount.currencyId) {
-      setCurrencyMismatch(true);
-      return;
-    }
-    const value = toNumber(amount);
-    if (value <= 0) {
+    const amount = toNumber(form.amount);
+    if (amount <= 0) {
       setFormError("مبلغ انتقال باید بیشتر از صفر باشد");
       return;
     }
+    if (!fromAccount || !toAccount) {
+      setFormError("انتخاب حساب مبدأ و مقصد الزامی است");
+      return;
+    }
 
-    setSubmitting(true);
+    let exchangeRate: number | undefined;
+    if (fromAccount.currencyId !== toAccount.currencyId) {
+      exchangeRate = toNumber(form.exchangeRate);
+      if (exchangeRate <= 0) {
+        setFormError("برای انتقال بین دو ارز، نرخ ارز باید بیشتر از صفر باشد");
+        return;
+      }
+    }
+
+    setSaving(true);
     try {
       await transferBetweenAccounts({
-        fromAccountId,
-        toAccountId,
-        amount: value,
+        fromAccountId: form.fromAccountId,
+        toAccountId: form.toAccountId,
+        amount,
+        ...(exchangeRate !== undefined ? { exchangeRate } : {}),
       });
-      toast.success(
-        `انتقال ${value.toLocaleString("fa-IR")} ${fromCurrency?.code ?? ""} با موفقیت انجام شد`
-      );
+      setTransfers((prev) => [
+        {
+          id: `${Date.now()}`,
+          fromAccountId: form.fromAccountId,
+          toAccountId: form.toAccountId,
+          amount,
+          ...(exchangeRate !== undefined ? { exchangeRate } : {}),
+          createdAt: Date.now(),
+        },
+        ...prev,
+      ]);
+      toast.success("انتقال با موفقیت انجام شد");
       setDialogOpen(false);
-      setFromAccountId("");
-      setToAccountId("");
-      setAmount("");
-      setDescription("");
-      await loadData();
     } catch (err) {
-      toast.error(extractApiErrorMessage(err, "انتقال وجه ناموفق بود"));
+      toast.error(extractApiErrorMessage(err, "انجام انتقال ناموفق بود"));
     } finally {
-      setSubmitting(false);
+      setSaving(false);
     }
   }
 
@@ -215,9 +222,9 @@ function AccountTransfersPageContent() {
     <div>
       <PageHeader
         title="انتقال بین حساب‌ها"
-        description="انتقال وجه بین حساب‌های هم‌ارز"
+        description="انتقال وجه بین دو حساب با ارز یکسان یا ارزهای متفاوت"
         action={
-          <Button onClick={openCreateDialog}>
+          <Button onClick={openCreateDialog} disabled={!accounts.length}>
             <Plus data-icon="inline-start" />
             انتقال جدید
           </Button>
@@ -227,7 +234,12 @@ function AccountTransfersPageContent() {
       <Card className="p-0">
         <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-sm font-semibold text-foreground">انتقال‌های اخیر</h2>
+            <h2 className="text-sm font-semibold text-foreground">
+              انتقال‌های انجام‌شده
+              <span className="mr-1.5 text-xs font-normal text-muted-foreground">
+                ({transfers.length.toLocaleString("fa-AF")} مورد)
+              </span>
+            </h2>
           </div>
         </div>
 
@@ -236,25 +248,27 @@ function AccountTransfersPageContent() {
             <TableRow>
               <TableHead>از حساب</TableHead>
               <TableHead>به حساب</TableHead>
-              <TableHead className="text-left">عملیات</TableHead>
+              <TableHead>مبلغ</TableHead>
+              <TableHead>نرخ ارز</TableHead>
+              <TableHead>تاریخ</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
+            {loadingAccounts || loadingTransfers ? (
               <TableRow>
-                <TableCell colSpan={3} className="py-10">
+                <TableCell colSpan={5} className="py-10">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <Loader2 className="h-6 w-6 animate-spin" />
                     <span className="text-sm">در حال بارگذاری...</span>
                   </div>
                 </TableCell>
               </TableRow>
-            ) : loadError ? (
+            ) : error && transfers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} className="py-10">
+                <TableCell colSpan={5} className="py-10">
                   <div className="flex flex-col items-center gap-3 text-center">
-                    <p className="text-sm text-muted-foreground">{loadError}</p>
-                    <Button variant="outline" size="sm" onClick={reload}>
+                    <p className="text-sm text-muted-foreground">{error}</p>
+                    <Button variant="outline" size="sm" onClick={load}>
                       تلاش مجدد
                     </Button>
                   </div>
@@ -262,29 +276,50 @@ function AccountTransfersPageContent() {
               </TableRow>
             ) : transfers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} className="py-10 text-center text-muted-foreground">
-                  هنوز انتقالی ثبت نشده است
+                <TableCell
+                  colSpan={5}
+                  className="py-10 text-center text-muted-foreground"
+                >
+                  هنوز انتقالی انجام نشده است
                 </TableCell>
               </TableRow>
             ) : (
-              transfers.map((t) => {
-                const from = getAccount(t.fromAccountId ?? "");
-                const to = getAccount(t.toAccountId ?? "");
-                const fc = from ? getCurrency(from.currencyId) : undefined;
-                const amount = t.amount ?? 0;
+              transfers.map((transfer) => {
+                const from = accounts.find(
+                  (a) => a.id === transfer.fromAccountId,
+                );
+                const to = accounts.find((a) => a.id === transfer.toAccountId);
                 return (
-                  <TableRow key={t.id}>
+                  <TableRow key={transfer.id}>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">
                           <ArrowLeftRight className="h-3.5 w-3.5 text-muted-foreground" />
                         </div>
-                        <span className="font-medium text-foreground">{from?.name ?? "—"}</span>
+                        <span className="font-medium text-foreground">
+                          {from?.name ?? "—"}
+                        </span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{to?.name ?? "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {to?.name ?? "—"}
+                    </TableCell>
+                    <TableCell
+                      dir="ltr"
+                      className="font-medium tabular-nums text-foreground"
+                    >
+                      {formatAmount(transfer.amount, from?.currencyCode)}
+                    </TableCell>
+                    <TableCell
+                      dir="ltr"
+                      className="tabular-nums text-muted-foreground"
+                    >
+                      {transfer.exchangeRate
+                        ? `${transfer.exchangeRate} ${to?.currencyCode ?? ""}`
+                        : "—"}
+                    </TableCell>
                     <TableCell dir="ltr" className="text-muted-foreground">
-                      {amount.toLocaleString("fa-IR")} {fc?.code ?? ""}
+                      {new Date(transfer.createdAt).toLocaleDateString("fa-IR")}
                     </TableCell>
                   </TableRow>
                 );
@@ -294,156 +329,168 @@ function AccountTransfersPageContent() {
         </Table>
       </Card>
 
-      {/* مودال انتقال حساب */}
+      {/* مودال انتقال */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
+          <DialogHeader className="text-right">
             <DialogTitle>انتقال بین حساب‌ها</DialogTitle>
             <DialogDescription>
-              مبلغ مورد نظر را از یک حساب به حساب هم‌ارز دیگر انتقال دهید
+              مبلغ را بین دو حساب (با ارز یکسان یا متفاوت) منتقل کنید
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* حساب مبدأ و مقصد */}
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <div className="space-y-2">
+              <div className="space-y-2 text-right">
                 <Label htmlFor="from-account">از حساب</Label>
-                <Select value={fromAccountId} onValueChange={handleFromChange}>
+
+                <Select
+                  value={form.fromAccountId}
+                  onValueChange={(v) =>
+                    setForm((f) => ({
+                      ...f,
+                      fromAccountId: v ?? "",
+                      toAccountId:
+                        f.toAccountId === v ? "" : f.toAccountId,
+                    }))
+                  }
+                >
                   <SelectTrigger id="from-account" className="w-full">
-                    <SelectValue
-                      placeholder={
-                        loading
-                          ? "در حال بارگذاری..."
-                          : accounts.length
-                            ? "انتخاب حساب مبدأ"
-                            : "حسابی یافت نشد"
+                    <SelectValue placeholder="انتخاب حساب مبدأ">
+                      {(value) =>
+                        accounts.find((a) => a.id === value)?.name ??
+                        "انتخاب حساب مبدأ"
                       }
-                    >
-                      {fromAccount
-                        ? `${fromAccount.name} (${fromCurrency?.code ?? ""})`
-                        : null}
                     </SelectValue>
                   </SelectTrigger>
+
                   <SelectContent>
-                    {accounts.map((account) => {
-                      const c = getCurrency(account.currencyId);
-                      return (
+                    {accounts.length === 0 ? (
+                      <SelectItem value="__none__" disabled>
+                        حسابی موجود نیست
+                      </SelectItem>
+                    ) : (
+                      accounts.map((account) => (
                         <SelectItem key={account.id} value={account.id}>
-                          {account.name} ({c?.code ?? ""})
+                          {account.name}
                         </SelectItem>
-                      );
-                    })}
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 text-right">
                 <Label htmlFor="to-account">به حساب</Label>
                 <Select
-                  value={toAccountId}
-                  onValueChange={(v) => {
-                    setToAccountId(v ?? "");
-                    setSameAccountError(false);
-                    setCurrencyMismatch(false);
-                  }}
+                  value={form.toAccountId}
+                  onValueChange={(v) =>
+                    setForm((f) => ({ ...f, toAccountId: v ?? "" }))
+                  }
+                  disabled={!fromAccount}
                 >
                   <SelectTrigger id="to-account" className="w-full">
                     <SelectValue
                       placeholder={
-                        fromAccountId
+                        fromAccount
                           ? "انتخاب حساب مقصد"
                           : "ابتدا حساب مبدأ را انتخاب کنید"
                       }
                     >
-                      {toAccount
-                        ? `${toAccount.name} (${toCurrencySel?.code ?? ""})`
-                        : null}
+                      {(value) =>
+                        accounts.find((a) => a.id === value)?.name ??
+                        (fromAccount
+                          ? "انتخاب حساب مقصد"
+                          : "ابتدا حساب مبدأ را انتخاب کنید")
+                      }
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {fromAccountId ? (
-                      sameCurrencyAccounts.length > 0 ? (
-                        sameCurrencyAccounts.map((account) => {
-                          const c = getCurrency(account.currencyId);
-                          return (
-                            <SelectItem key={account.id} value={account.id}>
-                              {account.name} ({c?.code ?? ""})
-                            </SelectItem>
-                          );
-                        })
-                      ) : (
-                        <SelectItem value="__none__" disabled>
-                          حساب هم‌ارزی برای انتقال وجود ندارد
+                    {!fromAccount ? (
+                      <SelectItem value="__none__" disabled>
+                        ابتدا حساب مبدأ را انتخاب کنید
+                      </SelectItem>
+                    ) : toCandidates.length === 0 ? (
+                      <SelectItem value="__none__" disabled>
+                        حساب دیگری برای مقصد وجود ندارد
+                      </SelectItem>
+                    ) : (
+                      toCandidates.map((account) => (
+                        <SelectItem key={account.id} value={account.id}>
+                          {account.name}
+                          {/* ({account.currencyCode}) */}
                         </SelectItem>
-                      )
-                    ) : null}
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
-
-                {sameAccountError && (
-                  <p className="text-xs text-destructive">
-                    حساب مبدأ و مقصد نمی‌توانند یکسان باشند
-                  </p>
-                )}
-                {currencyMismatch && (
-                  <p className="text-xs text-destructive">
-                    ارز حساب مبدأ ({fromCurrency?.code ?? ""}) با حساب مقصد (
-                    {toCurrencySel?.code ?? ""}) متفاوت است. فقط بین حساب‌های هم‌ارز انتقال انجام می‌شود.
-                  </p>
-                )}
               </div>
             </div>
 
-            {/* مبلغ و توضیحات */}
-            <div className="space-y-2">
+            <div className="space-y-2 text-right">
               <Label htmlFor="transfer-amount">مبلغ</Label>
               <div className="relative">
                 <Input
                   id="transfer-amount"
                   type="number"
                   step="any"
-                  min="0"
                   dir="ltr"
                   placeholder="0"
                   className="pl-14"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  value={form.amount}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, amount: e.target.value }))
+                  }
                   required
                 />
-                {fromCurrency && (
+                {fromAccount && (
                   <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                    {fromCurrency.code}
+                    {fromAccount.currencyCode}
                   </span>
                 )}
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="transfer-description">توضیحات</Label>
-              <Textarea
-                id="transfer-description"
-                placeholder="مثلاً: انتقال جهت مصارف نقدی ماهانه"
-                rows={3}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </div>
-
-            {formError && (
-              <p className="whitespace-pre-line text-sm text-destructive">{formError}</p>
+            {needsExchangeRate && (
+              <div className="space-y-2 text-right rounded-md border p-3">
+                <Label htmlFor="exchange-rate">
+                  نرخ ارز (هر {fromAccount?.currencyCode} معادل چند{" "}
+                  {toAccount?.currencyCode})
+                </Label>
+                <Input
+                  id="exchange-rate"
+                  type="number"
+                  step="any"
+                  dir="ltr"
+                  placeholder="0"
+                  value={form.exchangeRate}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, exchangeRate: e.target.value }))
+                  }
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  ۱ {fromAccount?.currencyCode} = {toNumber(form.exchangeRate)}{" "}
+                  {toAccount?.currencyCode}
+                </p>
+              </div>
             )}
 
-            {/* دکمه‌ها */}
-            <DialogFooter>
+            {formError && (
+              <p className="whitespace-pre-line text-sm text-destructive">
+                {formError}
+              </p>
+            )}
+
+            <DialogFooter className="gap-2">
               <DialogClose render={<Button type="button" variant="outline" />}>
                 انصراف
               </DialogClose>
-              <Button type="submit" disabled={submitting}>
-                {submitting && (
+              <Button type="submit" disabled={saving}>
+                {saving && (
                   <Loader2 data-icon="inline-start" className="animate-spin" />
                 )}
-                {submitting ? "در حال انتقال..." : "ثبت انتقال"}
+                {saving ? "در حال انجام انتقال..." : "ثبت انتقال"}
               </Button>
             </DialogFooter>
           </form>

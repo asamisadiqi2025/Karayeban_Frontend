@@ -14,6 +14,7 @@ import {
   ReceiptText,
   WalletCards,
   Landmark,
+  Warehouse,
 } from "lucide-react";
 
 export interface NavSubItem {
@@ -52,10 +53,10 @@ export const navSections: NavSection[] = [
         href: "/properties",
         icon: Building2,
         submenu: [
-          {
-            label: "املاک و طبقات",
-            href: "/properties",
-          },
+          // {
+          //   label: "املاک و طبقات",
+          //   href: "/properties",
+          // },
           {
             label: "دکان‌ها، واحدها و بساط‌ها",
             href: "/properties/units",
@@ -95,8 +96,8 @@ export const navSections: NavSection[] = [
         icon: ReceiptText,
         submenu: [
           {
-            label: "اجاره دکان‌ها",
-            href: "/rent/shops",
+            label: "اجاره دکان‌هاو واحدها",
+            href: "/shops",
           },
           {
             label: "اجاره واحدها",
@@ -163,6 +164,20 @@ export const navSections: NavSection[] = [
         ],
       },
 
+
+        // انبار
+      {
+        label: "گدام",
+        href: "/warehouse",
+        icon: Warehouse,
+        submenu: [
+          {
+            label: "گدام",
+            href: "/warehouse",
+          },
+        
+        ],
+      },
       // مدیریت مصارف
       {
         label: "مدیریت مصارف",
