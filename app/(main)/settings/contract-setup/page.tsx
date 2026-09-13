@@ -47,7 +47,7 @@ interface ContractData {
 const initialData: ContractData = {
   documentNumber: "28",
   documentDate: "",
-  baseRent: "55000",
+  baseRent: "5000",
 
   owner1Name: "حاجی محمد داود عادلیار",
   owner1Father: "جمعه خان",
