@@ -171,7 +171,10 @@ export const navSections: NavSection[] = [
             label: "گدام",
             href: "/warehouse",
           },
-        
+          {
+            label: "دسته بندی",
+            href: "/warehouse/categories",
+          },
         ],
       },
       // مدیریت مصارف
