@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Printer } from "lucide-react";
 import Image from "next/image";
 import DatePicker from "react-multi-date-picker";
@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import "./contract-print.css";
 
 interface ContractData {
   documentNumber: string;
@@ -121,17 +122,6 @@ function Field({
 export default function GaleriaContractPage() {
   const [data, setData] = useState<ContractData>(initialData);
 
-  useEffect(() => {
-    const id = "b-nazanin-font";
-    if (document.getElementById(id)) return;
-    const link = document.createElement("link");
-    link.id = id;
-    link.rel = "stylesheet";
-    link.href =
-      "https://db.onlinewebfonts.com/c/3671adca6f650c92b83f906e49656986?family=B+Nazanin";
-    document.head.appendChild(link);
-  }, []);
-
   function set<K extends keyof ContractData>(key: K) {
     return (value: string) => setData((prev) => ({ ...prev, [key]: value }));
   }
@@ -147,7 +137,7 @@ export default function GaleriaContractPage() {
   }
 
   return (
-    <div style={{ fontFamily: '"B Nazanin", Tahoma, Arial, sans-serif' }}>
+    <div>
       <PageHeader
         title="سند کرایه دوکاکین گالریا سنتر"
         description="اطلاعات متغیر سند را وارد کنید؛ پیش‌نمایش سمت راست به‌صورت زنده به‌روز می‌شود"
@@ -393,150 +383,6 @@ export default function GaleriaContractPage() {
           </div>
         </div>
       </div>
-
-      {/* استایل مخصوص چاپ: سند کامل یک صفحه A4 */}
-      <style jsx global>{`
-        .rmdp-input {
-          width: 100%;
-          height: 36px;
-          border-radius: 6px;
-          border: 1px solid hsl(var(--border));
-          background: transparent;
-          padding: 0 12px;
-          font-size: 14px;
-        }
-        .rmdp-input:focus {
-          outline: none;
-          ring: 2px solid hsl(var(--ring));
-          border-color: hsl(var(--ring));
-        }
-        @page {
-          size: A4;
-          margin: 10mm 15mm;
-        }
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          .print-area,
-          .print-area * {
-            visibility: visible;
-          }
-          .print-area {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            overflow: visible;
-          }
-          .print-area > div {
-            width: 100% !important;
-            max-width: none !important;
-            padding: 0 !important;
-            border: none !important;
-            box-shadow: none !important;
-            margin: 0 !important;
-            overflow: visible !important;
-            overflow-wrap: break-word !important;
-            word-wrap: break-word !important;
-            box-sizing: border-box !important;
-            font-family: "B Nazanin", Tahoma, Arial, sans-serif !important;
-            font-size: 16px !important;
-            line-height: 1.75 !important;
-          }
-          .no-print {
-            display: none !important;
-          }
-
-          /* — header — */
-          .print-area .flex.items-start {
-            gap: 10px !important;
-            margin-bottom: 8px !important;
-          }
-          .print-area img {
-            width: 60px !important;
-            height: 60px !important;
-          }
-          .print-area .shrink-0.text-right .space-y-1 {
-            font-size: 14px !important;
-            line-height: 1.5 !important;
-          }
-          .print-area .flex-1.text-center h1 {
-            font-size: 28px !important;
-            margin-bottom: 2px !important;
-          }
-          .print-area .flex-1.text-center p {
-            font-size: 16px !important;
-            margin-top: 1px !important;
-            line-height: 1.4 !important;
-          }
-          .print-area .h-\\[72px\\] {
-            width: 64px !important;
-            height: 64px !important;
-          }
-
-          /* — divider — */
-          .print-area .my-4 {
-            margin-top: 10px !important;
-            margin-bottom: 10px !important;
-          }
-
-          /* — section titles — */
-          .print-area .font-bold {
-            font-size: 17px !important;
-            margin-bottom: 4px !important;
-          }
-
-          /* — body paragraph — */
-          .print-area .text-justify {
-            font-size: 16px !important;
-            line-height: 1.8 !important;
-            text-align: justify !important;
-            margin: 0 !important;
-          }
-          .print-area .inline-block {
-            font-size: 16px !important;
-            padding: 0 2px !important;
-          }
-
-          /* — clauses section — */
-          .print-area .text-center.font-bold {
-            font-size: 17px !important;
-            margin-top: 10px !important;
-            margin-bottom: 4px !important;
-          }
-          .print-area ol.mt-2 {
-            font-size: 14px !important;
-            line-height: 1.7 !important;
-            margin-top: 4px !important;
-            gap: 4px !important;
-          }
-          .print-area ol li {
-            margin-bottom: 2px !important;
-            padding-bottom: 2px !important;
-          }
-
-          /* — witness line — */
-          .print-area .text-center.text-xs[dir="rtl"] {
-            font-size: 14px !important;
-            margin-top: 10px !important;
-            margin-bottom: 0 !important;
-          }
-
-          /* — signature grid — */
-          .print-area .grid.grid-cols-2.gap-x-8 {
-            margin-top: 16px !important;
-            gap-y: 14px !important;
-          }
-          .print-area .grid .space-y-6 > p {
-            font-size: 14px !important;
-            margin-bottom: 4px !important;
-          }
-          .print-area .grid .h-12 {
-            height: 36px !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }
