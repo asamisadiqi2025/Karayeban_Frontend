@@ -5,8 +5,10 @@ import { DollarSign, Users, Store, Zap } from "lucide-react";
 import { StatCard } from "@/components/client/dashboard/stat-card";
 import { OverviewChart } from "@/components/client/dashboard/overview-chart";
 import { ShopStatus } from "@/components/client/dashboard/traffic-sources";
-import { MonthlyGoals } from "@/components/client/dashboard/monthly-goals";
 import { RecentActivity } from "@/components/client/dashboard/recent-activity";
+import { InventorySummaryCard } from "@/components/client/dashboard/inventory-summary-card";
+import { RecentTransactions } from "@/components/client/dashboard/recent-transactions";
+import { ExpensesOverview } from "@/components/client/dashboard/expenses-overview";
 import {
   sparkRevenue,
   sparkTenants,
@@ -26,7 +28,9 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">{new Date().toLocaleDateString("fa-AF", { year: "numeric", month: "long", day: "numeric" })}</span>
+          <span className="font-medium text-foreground">
+            {new Date().toLocaleDateString("fa-AF", { year: "numeric", month: "long", day: "numeric" })}
+          </span>
         </div>
       </div>
 
@@ -78,17 +82,23 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Main Charts */}
+      {/* Overview Chart + Shop Status */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <div className="xl:col-span-2 space-y-6">
+        <div className="xl:col-span-2">
           <OverviewChart />
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <ShopStatus />
-            <MonthlyGoals />
-          </div>
         </div>
-        <RecentActivity />
+        <ShopStatus />
       </div>
+
+      {/* Warehouse Summary + Recent Transactions + Expenses */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <InventorySummaryCard />
+        <RecentTransactions />
+        <ExpensesOverview />
+      </div>
+
+      {/* Recent Activity */}
+      <RecentActivity />
     </div>
   );
 }
