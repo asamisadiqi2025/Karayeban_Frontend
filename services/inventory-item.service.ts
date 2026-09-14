@@ -161,3 +161,33 @@ export async function deleteInventoryItem(
   );
   return data ?? {};
 }
+
+export interface InventorySummaryWarehouseCurrency {
+  warehouseId: string;
+  currencyId: string;
+  currencyCode: string;
+  currencyName: string;
+  itemCount: number;
+  totalValue: string;
+}
+
+export interface InventorySummary {
+  marketId: string;
+  totalItems: number;
+  byWarehouseAndCurrency: InventorySummaryWarehouseCurrency[];
+}
+
+/**
+ * خلاصه اجناس انبار
+ * GET /inventory/items/summary
+ */
+export async function fetchInventorySummary(): Promise<InventorySummary> {
+  const { data } = await apiClient.get("/inventory/items/summary");
+  return {
+    marketId: data?.marketId ?? "",
+    totalItems: data?.totalItems ?? 0,
+    byWarehouseAndCurrency: Array.isArray(data?.byWarehouseAndCurrency)
+      ? data.byWarehouseAndCurrency
+      : [],
+  };
+}
