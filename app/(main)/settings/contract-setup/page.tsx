@@ -48,7 +48,7 @@ interface ContractData {
 const initialData: ContractData = {
   documentNumber: "28",
   documentDate: "",
-  baseRent: "55000",
+  baseRent: "5000",
 
   owner1Name: "حاجی محمد داود عادلیار",
   owner1Father: "جمعه خان",
@@ -89,7 +89,7 @@ const CLAUSES: string[] = [
 
 function Blank({ value }: { value: string }) {
   return (
-    <span className="border-b-[1.5px] border-b-neutral-400 px-0.5 font-semibold text-neutral-900">
+    <span dir="ltr" className="border-b-[1.5px] border-b-neutral-400 px-0.5 font-semibold text-neutral-900">
       {value.trim() !== "" ? value : "\u00A0"}
     </span>
   );

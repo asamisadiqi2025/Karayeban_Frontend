@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, Search, Pencil, Trash2, Store, Loader2 } from "lucide-react";
 
 import { PageHeader } from "@/components/server/dashboard/page-header";
@@ -8,9 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -36,195 +34,235 @@ import {
   TableCell,
 } from "@/components/ui/table";
 
-// TODO(اتصال بک‌اند): از صفحه‌ی تنظیمات طبقات واقعی پروژه بخوانید.
-interface Floor {
-  id: string;
-  name: string;
-}
+import {
+  fetchUnits,
+  createUnit,
+  updateUnit,
+  deleteUnit,
+  type Unit,
+  type UnitType,
+} from "@/services/unit.service";
+import { fetchFloors, type Floor } from "@/services/floor.service";
+import { extractApiErrorMessage } from "@/services/client";
+import { fetchMyMarket } from "@/services/market.service";
+import { ToastProvider, useToast } from "@/components/client/toast";
+import { useAuth } from "@/contexts/auth-context";
 
-const floors: Floor[] = [
-  { id: "basement", name: "زیرزمین" },
-  { id: "ground", name: "همکف" },
-  { id: "first", name: "طبقه اول" },
-  { id: "second", name: "طبقه دوم" },
-  { id: "third", name: "طبقه سوم" },
-];
-
-function getFloor(id: string): Floor | undefined {
-  return floors.find((f) => f.id === id);
-}
-
-type PropertyType = "shop" | "unit" | "stall";
-type PropertyStatus = "vacant" | "under_repair" | "rented";
-
-const PROPERTY_TYPE_LABEL: Record<PropertyType, string> = {
+const UNIT_TYPE_LABEL: Record<UnitType, string> = {
   shop: "دوکان",
   unit: "واحد",
   stall: "بساط",
 };
 
-const PROPERTY_STATUS_LABEL: Record<PropertyStatus, string> = {
-  vacant: "خالی",
-  under_repair: "در حال تعمیر",
-  rented: "کرایه داده شده",
-};
-
-interface Property {
-  id: string;
-  shopNumber: string;
-  floorId: string;
-  area: string;
-  location: string;
-  type: PropertyType;
-  status: PropertyStatus;
-  details: string;
-}
-
-const initialProperties: Property[] = [
-  {
-    id: "PRP-01",
-    shopNumber: "14",
-    floorId: "ground",
-    area: "24",
-    location: "ردیف اول، نزدیک دروازه ورودی",
-    type: "shop",
-    status: "rented",
-    details: "دارای دو کرکره برقی",
-  },
-  {
-    id: "PRP-02",
-    shopNumber: "21",
-    floorId: "first",
-    area: "12",
-    location: "کنار پیلر شماره ۳",
-    type: "stall",
-    status: "vacant",
-    details: "",
-  },
-  {
-    id: "PRP-03",
-    shopNumber: "33",
-    floorId: "second",
-    area: "40",
-    location: "انتهای راهرو",
-    type: "unit",
-    status: "under_repair",
-    details: "تعویض سیم‌کشی برق در حال انجام است",
-  },
-];
-
 const emptyForm = {
   shopNumber: "",
   floorId: "",
+  type: "shop" as UnitType,
   area: "",
   location: "",
-  type: "shop" as PropertyType,
-  status: "vacant" as PropertyStatus,
   details: "",
 };
 
-function statusBadgeProps(status: PropertyStatus): {
-  variant: "success" | "secondary" | "outline";
-  className?: string;
-} {
-  switch (status) {
-    case "vacant":
-      return { variant: "success" };
-    case "rented":
-      return { variant: "secondary" };
-    case "under_repair":
-      return {
-        variant: "outline",
-        className:
-          "border-amber-200 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
-      };
-  }
+export default function PropertiesUnitsPage() {
+  return (
+    <ToastProvider>
+      <PropertiesUnitsPageContent />
+    </ToastProvider>
+  );
 }
 
-export default function PropertiesPage() {
-  const [properties, setProperties] = useState<Property[]>(initialProperties);
+function PropertiesUnitsPageContent() {
+  const toast = useToast();
+  const { user } = useAuth();
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [floors, setFloors] = useState<Floor[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<"all" | PropertyStatus>("all");
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [unitsResult, floorsResult] = await Promise.allSettled([
+        fetchUnits(),
+        fetchFloors(),
+      ]);
+      setUnits(
+        unitsResult.status === "fulfilled"
+          ? Array.isArray(unitsResult.value) ? unitsResult.value : []
+          : [],
+      );
+      setFloors(
+        floorsResult.status === "fulfilled"
+          ? Array.isArray(floorsResult.value) ? floorsResult.value : []
+          : [],
+      );
+      if (unitsResult.status === "rejected") {
+        setError(
+          extractApiErrorMessage(unitsResult.reason, "خطا در دریافت واحدها"),
+        );
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.allSettled([fetchUnits(), fetchFloors()]).then(
+      ([unitsResult, floorsResult]) => {
+        if (cancelled) return;
+        setUnits(
+          unitsResult.status === "fulfilled"
+            ? Array.isArray(unitsResult.value) ? unitsResult.value : []
+            : [],
+        );
+        setFloors(
+          floorsResult.status === "fulfilled"
+            ? Array.isArray(floorsResult.value) ? floorsResult.value : []
+            : [],
+        );
+        if (unitsResult.status === "rejected") {
+          setError(
+            extractApiErrorMessage(unitsResult.reason, "خطا در دریافت واحدها"),
+          );
+        }
+        setLoading(false);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const floorName = useCallback(
+    (id: string) => floors.find((f) => f.id === id)?.name,
+    [floors],
+  );
 
   const filtered = useMemo(() => {
-    return properties.filter((p) => {
-      const matchesFilter = filter === "all" || p.status === filter;
+    return units.filter((u) => {
       const matchesQuery =
         query.trim() === "" ||
-        p.shopNumber.includes(query) ||
-        p.location.includes(query);
-      return matchesFilter && matchesQuery;
+        u.shopNumber.includes(query) ||
+        u.location.includes(query);
+      return matchesQuery;
     });
-  }, [properties, query, filter]);
-
-  function handleChange<K extends keyof typeof emptyForm>(field: K) {
-    return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      setForm((prev) => ({ ...prev, [field]: e.target.value }));
-    };
-  }
+  }, [units, query]);
 
   function openCreateDialog() {
     setEditingId(null);
     setForm(emptyForm);
+    setFormError(null);
     setDialogOpen(true);
   }
 
-  function openEditDialog(property: Property) {
-    setEditingId(property.id);
+  function openEditDialog(unit: Unit) {
+    setEditingId(unit.id);
     setForm({
-      shopNumber: property.shopNumber,
-      floorId: property.floorId,
-      area: property.area,
-      location: property.location,
-      type: property.type,
-      status: property.status,
-      details: property.details,
+      shopNumber: unit.shopNumber,
+      floorId: unit.floorId,
+      type: unit.type,
+      area: unit.area === 0 ? "" : String(unit.area),
+      location: unit.location,
+      details: unit.details,
     });
+    setFormError(null);
     setDialogOpen(true);
   }
 
-  function handleDelete(id: string) {
-    setProperties((prev) => prev.filter((p) => p.id !== id));
+  async function handleDelete(unit: Unit) {
+    setDeletingId(unit.id);
+    try {
+      await deleteUnit(unit.id);
+      setUnits((prev) => prev.filter((u) => u.id !== unit.id));
+      toast.success("واحد با موفقیت حذف شد");
+    } catch (err) {
+      toast.error(extractApiErrorMessage(err, "حذف واحد ناموفق بود"));
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
+    setFormError(null);
 
-    // TODO: اتصال به بک‌اند NestJS — POST/PATCH /properties
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    const normalized: Property = {
-      id: editingId ?? `PRP-${String(properties.length + 1).padStart(2, "0")}`,
-      ...form,
-    };
-
-    if (editingId) {
-      setProperties((prev) =>
-        prev.map((p) => (p.id === editingId ? normalized : p)),
-      );
-    } else {
-      setProperties((prev) => [normalized, ...prev]);
+    if (!form.shopNumber.trim()) {
+      setFormError("شماره دوکان الزامی است");
+      return;
+    }
+    if (!form.floorId) {
+      setFormError("انتخاب طبقه الزامی است");
+      return;
+    }
+    const area = Number(form.area);
+    if (form.area.trim() === "" || !Number.isFinite(area) || area <= 0) {
+      setFormError("مساحت باید عددی بزرگ‌تر از صفر باشد");
+      return;
     }
 
-    setLoading(false);
-    setDialogOpen(false);
+    let marketId = user?.marketId;
+    if (!marketId && !editingId) {
+      try {
+        const market = await fetchMyMarket();
+        marketId = market.id;
+      } catch {
+        setFormError("شناسه مارکت یافت نشد");
+        return;
+      }
+    }
+
+    const basePayload = {
+      shopNumber: form.shopNumber.trim(),
+      floorId: form.floorId,
+      type: form.type,
+      area,
+      location: form.location.trim(),
+      details: form.details.trim(),
+    };
+
+    setSaving(true);
+    try {
+      if (editingId) {
+        const updated = await updateUnit(editingId, basePayload);
+        setUnits((prev) =>
+          prev.map((u) => (u.id === editingId ? updated : u)),
+        );
+        toast.success("واحد با موفقیت بروزرسانی شد");
+      } else {
+        const created = await createUnit({
+          ...basePayload,
+          marketId: marketId!,
+        });
+        setUnits((prev) => [created, ...prev]);
+        toast.success("واحد جدید با موفقیت ثبت شد");
+      }
+      setDialogOpen(false);
+    } catch (err) {
+      toast.error(extractApiErrorMessage(err, "ثبت واحد ناموفق بود"));
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
     <div>
       <PageHeader
-        title="دوکان‌ها و املاک"
+        title="املاک و واحدها"
         description="مدیریت دوکان‌ها، واحدها و بساط‌های مارکت"
         action={
           <Button onClick={openCreateDialog}>
             <Plus data-icon="inline-start" />
-            افزودن دوکان جدید
+            افزودن ملک جدید
           </Button>
         }
       />
@@ -233,82 +271,101 @@ export default function PropertiesPage() {
         <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-sm font-semibold text-foreground">
-              همه دوکان‌ها
+              همه واحدها
+              {!loading && (
+                <span className="mr-1.5 text-xs font-normal text-muted-foreground">
+                  ({filtered.length.toLocaleString("fa-AF")} مورد)
+                </span>
+              )}
             </h2>
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <div className="relative">
-              <Search className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="جستجوی شماره دوکان یا موقعیت..."
-                className="w-full pr-8 sm:w-64"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </div>
-
-            <Tabs
-              value={filter}
-              onValueChange={(v) => setFilter(v as typeof filter)}
-            >
-              <TabsList>
-                <TabsTrigger value="all">همه</TabsTrigger>
-                <TabsTrigger value="vacant">خالی</TabsTrigger>
-                <TabsTrigger value="rented">کرایه داده شده</TabsTrigger>
-                <TabsTrigger value="under_repair">در حال تعمیر</TabsTrigger>
-              </TabsList>
-            </Tabs>
+          <div className="relative">
+            <Search className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="جستجوی شماره دوکان یا موقعیت..."
+              className="w-full pr-8 sm:w-64"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
           </div>
         </div>
 
         <Table>
-          <TableHeader>
+          <TableHeader className="text-right">
             <TableRow>
-              <TableHead>شماره دوکان</TableHead>
-              <TableHead>طبقه</TableHead>
-              <TableHead>نوع</TableHead>
-              <TableHead>مساحت</TableHead>
-              <TableHead>موقعیت</TableHead>
-              <TableHead>وضعیت</TableHead>
+              <TableHead className="text-right">شماره دوکان</TableHead>
+              <TableHead className="text-right">طبقه</TableHead>
+              <TableHead className="text-right">نوع</TableHead>
+              <TableHead className="text-right">مساحت</TableHead>
+              <TableHead className="text-right">موقعیت</TableHead>
+              <TableHead className="text-right">جزییات</TableHead>
               <TableHead className="text-left">عملیات</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map((property) => {
-              const badge = statusBadgeProps(property.status);
-              return (
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={7} className="py-10">
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <span className="text-sm">در حال بارگذاری...</span>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : error ? (
+              <TableRow>
+                <TableCell colSpan={7} className="py-10">
+                  <div className="flex flex-col items-center gap-3 text-center">
+                    <p className="text-sm text-muted-foreground">{error}</p>
+                    <Button variant="outline" size="sm" onClick={load}>
+                      تلاش مجدد
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : filtered.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  className="py-10 text-center text-muted-foreground"
+                >
+                  ملکی یافت نشد
+                </TableCell>
+              </TableRow>
+            ) : (
+              filtered.map((unit) => (
                 <TableRow
-                  key={property.id}
-                  className="cursor-pointer"
-                  onClick={() => openEditDialog(property)}
+                  key={unit.id}
+                  className="cursor-pointer hover:bg-muted/40"
+                  onClick={() => openEditDialog(unit)}
                 >
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">
                         <Store className="h-3.5 w-3.5 text-muted-foreground" />
                       </div>
-                      <span dir="ltr" className="font-medium text-foreground">
-                        {property.shopNumber}
+                      <span className="font-medium text-foreground" dir="ltr">
+                        {unit.shopNumber}
                       </span>
                     </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {getFloor(property.floorId)?.name ?? "—"}
+                    {floorName(unit.floorId) ?? "—"}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {PROPERTY_TYPE_LABEL[property.type]}
+                    {UNIT_TYPE_LABEL[unit.type] ?? unit.type}
                   </TableCell>
-                  <TableCell dir="ltr" className="text-muted-foreground">
-                    {property.area ? `${property.area} م²` : "—"}
+                  <TableCell className="text-muted-foreground">
+                    {unit.area > 0
+                      ? `${unit.area.toLocaleString("fa-IR")} م²`
+                      : "—"}
                   </TableCell>
-                  <TableCell className="max-w-[220px] truncate text-muted-foreground">
-                    {property.location || "—"}
+                  <TableCell className="max-w-[200px] truncate text-muted-foreground">
+                    {unit.location || "—"}
                   </TableCell>
-                  <TableCell>
-                    <Badge variant={badge.variant} className={badge.className}>
-                      {PROPERTY_STATUS_LABEL[property.status]}
-                    </Badge>
+                  <TableCell className="max-w-[200px] truncate text-muted-foreground">
+                    {unit.details || "—"}
                   </TableCell>
                   <TableCell className="text-left">
                     <div className="flex items-center justify-end gap-1">
@@ -317,7 +374,7 @@ export default function PropertiesPage() {
                         size="icon-sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          openEditDialog(property);
+                          openEditDialog(unit);
                         }}
                       >
                         <Pencil className="h-3.5 w-3.5" />
@@ -326,39 +383,33 @@ export default function PropertiesPage() {
                         variant="ghost"
                         size="icon-sm"
                         className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        disabled={deletingId === unit.id}
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDelete(property.id);
+                          handleDelete(unit);
                         }}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        {deletingId === unit.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
                       </Button>
                     </div>
                   </TableCell>
                 </TableRow>
-              );
-            })}
-
-            {filtered.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={7}
-                  className="py-10 text-center text-muted-foreground"
-                >
-                  دوکانی یافت نشد
-                </TableCell>
-              </TableRow>
+              ))
             )}
           </TableBody>
         </Table>
       </Card>
 
-      {/* مودال ایجاد دوکان یا ملک / ویرایش */}
+      {/* مودال ایجاد / ویرایش ملک */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>
-              {editingId ? "ویرایش دوکان" : "ایجاد دوکان یا ملک"}
+              {editingId ? "ویرایش ملک" : "ایجاد ملک جدید"}
             </DialogTitle>
             <DialogDescription>
               اطلاعات دوکان، واحد یا بساط را وارد کنید
@@ -366,81 +417,70 @@ export default function PropertiesPage() {
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* شماره دوکان و طبقه */}
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <div className="space-y-2 text-right">
-                <Label htmlFor="shop-number">شماره دوکان</Label>
+                <Label htmlFor="unit-number">شماره دوکان</Label>
                 <Input
-                  id="shop-number"
+                  id="unit-number"
                   dir="ltr"
-                  placeholder="مثلاً: 14"
+                  placeholder="مثلاً: 5"
                   value={form.shopNumber}
-                  onChange={handleChange("shopNumber")}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, shopNumber: e.target.value }))
+                  }
                   required
                 />
               </div>
 
               <div className="space-y-2 text-right">
-                <Label htmlFor="property-floor">طبقه</Label>
+                <Label htmlFor="unit-floor">طبقه</Label>
                 <Select
                   value={form.floorId}
-                  onValueChange={(v) => setForm((f) => ({ ...f, floorId: v ?? "" }))}
+                  onValueChange={(v) =>
+                    setForm((f) => ({ ...f, floorId: v ?? "" }))
+                  }
                 >
-                  <SelectTrigger id="property-floor" className="w-full">
-                    <SelectValue placeholder="انتخاب طبقه" />
+                  <SelectTrigger id="unit-floor" className="w-full">
+                    <SelectValue placeholder="انتخاب طبقه">
+                      {(value) =>
+                        floors.find((f) => f.id === value)?.name ??
+                        "انتخاب طبقه"
+                      }
+                    </SelectValue>
                   </SelectTrigger>
-
                   <SelectContent>
-                    {floors.map((floor) => (
-                      <SelectItem key={floor.id} value={floor.id}>
-                        {floor.name}
+                    {floors.length === 0 ? (
+                      <SelectItem value="__none__" disabled>
+                        طبقه‌ای تعریف نشده است
                       </SelectItem>
-                    ))}
+                    ) : (
+                      floors.map((floor) => (
+                        <SelectItem key={floor.id} value={floor.id}>
+                          {floor.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            {/* مساحت و نوع */}
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <div className="space-y-2 text-right">
-                <Label htmlFor="property-area">مساحت</Label>
-
-                <div className="relative">
-                  <Input
-                    id="property-area"
-                    type="number"
-                    step="any"
-                    dir="ltr"
-                    placeholder="0"
-                    className="pl-10"
-                    value={form.area}
-                    onChange={handleChange("area")}
-                    required
-                  />
-
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                    م²
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-2 text-right">
-                <Label htmlFor="property-type">نوع دوکان یا ملک</Label>
-
+                <Label htmlFor="unit-type">نوع ملک</Label>
                 <Select
                   value={form.type}
                   onValueChange={(v) =>
-                    setForm((f) => ({
-                      ...f,
-                      type: v as PropertyType,
-                    }))
+                    setForm((f) => ({ ...f, type: v as UnitType }))
                   }
                 >
-                  <SelectTrigger id="property-type" className="w-full">
-                    <SelectValue placeholder="انتخاب نوع" />
+                  <SelectTrigger id="unit-type" className="w-full">
+                    <SelectValue placeholder="انتخاب نوع">
+                      {(value) =>
+                        UNIT_TYPE_LABEL[value as UnitType] ?? "انتخاب نوع"
+                      }
+                    </SelectValue>
                   </SelectTrigger>
-
                   <SelectContent>
                     <SelectItem value="shop">دوکان</SelectItem>
                     <SelectItem value="unit">واحد</SelectItem>
@@ -448,78 +488,75 @@ export default function PropertiesPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="space-y-2 text-right">
+                <Label htmlFor="unit-area">مساحت</Label>
+                <div className="relative">
+                  <Input
+                    id="unit-area"
+                    type="number"
+                    step="any"
+                    min="0"
+                    dir="ltr"
+                    placeholder="0"
+                    className="pl-10"
+                    value={form.area}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, area: e.target.value }))
+                    }
+                    required
+                  />
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                    م²
+                  </span>
+                </div>
+              </div>
             </div>
 
-            {/* موقعیت */}
             <div className="space-y-2 text-right">
-              <Label htmlFor="property-location">موقعیت</Label>
-
+              <Label htmlFor="unit-location">موقعیت</Label>
               <Input
-                id="property-location"
-                placeholder="مثلاً: ردیف اول، نزدیک دروازه ورودی"
+                id="unit-location"
+                placeholder="مثلاً: ردیف اول"
                 value={form.location}
-                onChange={handleChange("location")}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, location: e.target.value }))
+                }
               />
             </div>
 
-            {/* وضعیت */}
             <div className="space-y-2 text-right">
-              <Label htmlFor="property-status">وضعیت</Label>
-
-              <Select
-                value={form.status}
-                onValueChange={(v) =>
-                  setForm((f) => ({
-                    ...f,
-                    status: v as PropertyStatus,
-                  }))
-                }
-              >
-                <SelectTrigger id="property-status" className="w-full">
-                  <SelectValue placeholder="انتخاب وضعیت" />
-                </SelectTrigger>
-
-                <SelectContent>
-                  <SelectItem value="vacant">خالی</SelectItem>
-                  <SelectItem value="under_repair">در حال تعمیر</SelectItem>
-                  <SelectItem value="rented">کرایه داده شده</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* جزییات */}
-            <div className="space-y-2 text-right">
-              <Label htmlFor="property-details">جزییات</Label>
-
+              <Label htmlFor="unit-details">جزییات</Label>
               <Textarea
-                id="property-details"
-                placeholder="توضیحات تکمیلی درباره دوکان یا ملک..."
+                id="unit-details"
                 rows={4}
+                placeholder="توضیحات تکمیلی..."
                 value={form.details}
-                onChange={handleChange("details")}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, details: e.target.value }))
+                }
               />
             </div>
 
-            {/* دکمه‌ها */}
-            <DialogFooter className="gap-2 sm:gap-2">
-              <DialogClose
-                render={
-                  <Button variant="outline" type="button">
-                    انصراف
-                  </Button>
-                }
-              />
+            {formError && (
+              <p className="whitespace-pre-line text-sm text-destructive">
+                {formError}
+              </p>
+            )}
 
-              <Button type="submit" disabled={loading}>
-                {loading && (
+            <DialogFooter className="gap-2">
+              <DialogClose render={<Button variant="outline" type="button" />}>
+                انصراف
+              </DialogClose>
+              <Button type="submit" disabled={saving}>
+                {saving && (
                   <Loader2 data-icon="inline-start" className="animate-spin" />
                 )}
-
-                {loading
+                {saving
                   ? "در حال ذخیره..."
                   : editingId
                     ? "ذخیره تغییرات"
-                    : "ثبت دوکان"}
+                    : "ثبت ملک"}
               </Button>
             </DialogFooter>
           </form>

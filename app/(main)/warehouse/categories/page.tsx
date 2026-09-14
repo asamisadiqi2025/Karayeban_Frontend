@@ -1,8 +1,7 @@
-
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Search, Pencil, Trash2, Landmark, Loader2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Tag, Loader2 } from "lucide-react";
 
 import { PageHeader } from "@/components/server/dashboard/page-header";
 import { Card } from "@/components/ui/card";
@@ -28,39 +27,33 @@ import {
 } from "@/components/ui/table";
 
 import {
-  fetchShareholders,
-  createShareholder,
-  updateShareholder,
-  deleteShareholder,
-  type Shareholder,
-} from "@/services/shareholder.service";
+  fetchInventoryCategories,
+  createInventoryCategory,
+  updateInventoryCategory,
+  deleteInventoryCategory,
+  type InventoryCategory,
+} from "@/services/inventory-category.service";
 import { extractApiErrorMessage } from "@/services/client";
 import { ToastProvider, useToast } from "@/components/client/toast";
 
-const emptyForm = {
-  fullName: "",
-  contact: "",
-  idNumber: "",
-};
-
-export default function OwnersPage() {
+export default function CategoriesPage() {
   return (
     <ToastProvider>
-      <OwnersPageContent />
+      <CategoriesPageContent />
     </ToastProvider>
   );
 }
 
-function OwnersPageContent() {
+function CategoriesPageContent() {
   const toast = useToast();
-  const [shareholders, setShareholders] = useState<Shareholder[]>([]);
+  const [categories, setCategories] = useState<InventoryCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState(emptyForm);
+  const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -69,10 +62,10 @@ function OwnersPageContent() {
     setLoading(true);
     setError(null);
     try {
-      const result = await fetchShareholders();
-      setShareholders(Array.isArray(result) ? result : []);
+      const result = await fetchInventoryCategories();
+      setCategories(Array.isArray(result) ? result : []);
     } catch (err) {
-      setError(extractApiErrorMessage(err, "خطا در دریافت مالکین"));
+      setError(extractApiErrorMessage(err, "خطا در دریافت دسته‌بندی‌ها"));
     } finally {
       setLoading(false);
     }
@@ -80,14 +73,14 @@ function OwnersPageContent() {
 
   useEffect(() => {
     let cancelled = false;
-    fetchShareholders()
+    fetchInventoryCategories()
       .then((result) => {
         if (cancelled) return;
-        setShareholders(Array.isArray(result) ? result : []);
+        setCategories(Array.isArray(result) ? result : []);
       })
       .catch((err) => {
         if (cancelled) return;
-        setError(extractApiErrorMessage(err, "خطا در دریافت مالکین"));
+        setError(extractApiErrorMessage(err, "خطا در دریافت دسته‌بندی‌ها"));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -98,42 +91,33 @@ function OwnersPageContent() {
   }, []);
 
   const filtered = useMemo(() => {
-    return shareholders.filter((s) => {
-      const matchesQuery =
-        query.trim() === "" ||
-        s.fullName.includes(query) ||
-        s.contact.includes(query) ||
-        s.idNumber.includes(query);
-      return matchesQuery;
-    });
-  }, [shareholders, query]);
+    return categories.filter((c) =>
+      query.trim() === "" || c.name.includes(query),
+    );
+  }, [categories, query]);
 
   function openCreateDialog() {
     setEditingId(null);
-    setForm(emptyForm);
+    setName("");
     setFormError(null);
     setDialogOpen(true);
   }
 
-  function openEditDialog(shareholder: Shareholder) {
-    setEditingId(shareholder.id);
-    setForm({
-      fullName: shareholder.fullName,
-      contact: shareholder.contact,
-      idNumber: shareholder.idNumber,
-    });
+  function openEditDialog(category: InventoryCategory) {
+    setEditingId(category.id);
+    setName(category.name);
     setFormError(null);
     setDialogOpen(true);
   }
 
-  async function handleDelete(shareholder: Shareholder) {
-    setDeletingId(shareholder.id);
+  async function handleDelete(category: InventoryCategory) {
+    setDeletingId(category.id);
     try {
-      await deleteShareholder(shareholder.id);
-      setShareholders((prev) => prev.filter((s) => s.id !== shareholder.id));
-      toast.success("مالک با موفقیت حذف شد");
+      await deleteInventoryCategory(category.id);
+      setCategories((prev) => prev.filter((c) => c.id !== category.id));
+      toast.success("دسته‌بندی با موفقیت حذف شد");
     } catch (err) {
-      toast.error(extractApiErrorMessage(err, "حذف مالک ناموفق بود"));
+      toast.error(extractApiErrorMessage(err, "حذف دسته‌بندی ناموفق بود"));
     } finally {
       setDeletingId(null);
     }
@@ -143,41 +127,27 @@ function OwnersPageContent() {
     e.preventDefault();
     setFormError(null);
 
-    if (!form.fullName.trim()) {
-      setFormError("نام مالک الزامی است");
+    if (!name.trim()) {
+      setFormError("نام دسته‌بندی الزامی است");
       return;
     }
-    if (!form.contact.trim()) {
-      setFormError("شماره تماس الزامی است");
-      return;
-    }
-    if (!form.idNumber.trim()) {
-      setFormError("شماره شناسایی الزامی است");
-      return;
-    }
-
-    const payload = {
-      fullName: form.fullName.trim(),
-      contact: form.contact.trim(),
-      idNumber: form.idNumber.trim(),
-    };
 
     setSaving(true);
     try {
       if (editingId) {
-        const updated = await updateShareholder(editingId, payload);
-        setShareholders((prev) =>
-          prev.map((s) => (s.id === editingId ? updated : s)),
+        const updated = await updateInventoryCategory(editingId, { name: name.trim() });
+        setCategories((prev) =>
+          prev.map((c) => (c.id === editingId ? updated : c)),
         );
-        toast.success("مالک با موفقیت بروزرسانی شد");
+        toast.success("دسته‌بندی با موفقیت بروزرسانی شد");
       } else {
-        const created = await createShareholder(payload);
-        setShareholders((prev) => [created, ...prev]);
-        toast.success("مالک جدید با موفقیت ثبت شد");
+        const created = await createInventoryCategory({ name: name.trim() });
+        setCategories((prev) => [created, ...prev]);
+        toast.success("دسته‌بندی جدید با موفقیت ثبت شد");
       }
       setDialogOpen(false);
     } catch (err) {
-      toast.error(extractApiErrorMessage(err, "ثبت مالک ناموفق بود"));
+      toast.error(extractApiErrorMessage(err, "ثبت دسته‌بندی ناموفق بود"));
     } finally {
       setSaving(false);
     }
@@ -186,12 +156,12 @@ function OwnersPageContent() {
   return (
     <div>
       <PageHeader
-        title="مالکین"
-        description="مدیریت اطلاعات مالکین"
+        title="دسته‌بندی‌های انبار"
+        description="مدیریت دسته‌بندی‌های انبار"
         action={
           <Button onClick={openCreateDialog}>
             <Plus data-icon="inline-start" />
-            افزودن مالک جدید
+            دسته‌بندی جدید
           </Button>
         }
       />
@@ -200,7 +170,7 @@ function OwnersPageContent() {
         <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-sm font-semibold text-foreground">
-              همه مالکین
+              همه دسته‌بندی‌ها
               {!loading && (
                 <span className="mr-1.5 text-xs font-normal text-muted-foreground">
                   ({filtered.length.toLocaleString("fa-AF")} مورد)
@@ -213,8 +183,8 @@ function OwnersPageContent() {
             <div className="relative">
               <Search className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="جستجوی نام، تماس یا شماره شناسایی..."
-                className="w-full pr-8 sm:w-64"
+                placeholder="جستجوی دسته‌بندی..."
+                className="w-full pr-8 sm:w-56"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
@@ -225,16 +195,14 @@ function OwnersPageContent() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-right pr-5">نام مالک</TableHead>
-              <TableHead className="text-right">شماره تماس</TableHead>
-              <TableHead className="text-right">شماره شناسایی</TableHead>
+              <TableHead className="text-right">نام دسته‌بندی</TableHead>
               <TableHead className="text-left">عملیات</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={4} className="py-10">
+                <TableCell colSpan={2} className="py-10">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <Loader2 className="h-6 w-6 animate-spin" />
                     <span className="text-sm">در حال بارگذاری...</span>
@@ -243,7 +211,7 @@ function OwnersPageContent() {
               </TableRow>
             ) : error ? (
               <TableRow>
-                <TableCell colSpan={4} className="py-10">
+                <TableCell colSpan={2} className="py-10">
                   <div className="flex flex-col items-center gap-3 text-center">
                     <p className="text-sm text-muted-foreground">{error}</p>
                     <Button variant="outline" size="sm" onClick={load}>
@@ -255,40 +223,28 @@ function OwnersPageContent() {
             ) : filtered.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={4}
+                  colSpan={2}
                   className="py-10 text-center text-muted-foreground"
                 >
-                  مالکی یافت نشد
+                  دسته‌بندی‌ای یافت نشد
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((shareholder) => (
+              filtered.map((category) => (
                 <TableRow
-                  key={shareholder.id}
+                  key={category.id}
                   className="cursor-pointer hover:bg-muted/40"
-                  onClick={() => openEditDialog(shareholder)}
+                  onClick={() => openEditDialog(category)}
                 >
-                  <TableCell className="text-right">
+                  <TableCell>
                     <div className="flex items-center gap-2">
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">
-                        <Landmark className="h-3.5 w-3.5 text-muted-foreground" />
+                        <Tag className="h-3.5 w-3.5 text-muted-foreground" />
                       </div>
                       <span className="font-medium text-foreground">
-                        {shareholder.fullName}
+                        {category.name}
                       </span>
                     </div>
-                  </TableCell>
-                  <TableCell
-                    dir="ltr"
-                    className="text-right text-muted-foreground"
-                  >
-                    {shareholder.contact}
-                  </TableCell>
-                  <TableCell
-                    dir="ltr"
-                    className="text-right text-muted-foreground"
-                  >
-                    {shareholder.idNumber}
                   </TableCell>
                   <TableCell className="text-left">
                     <div className="flex items-center justify-end gap-1">
@@ -297,7 +253,7 @@ function OwnersPageContent() {
                         size="icon-sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          openEditDialog(shareholder);
+                          openEditDialog(category);
                         }}
                       >
                         <Pencil className="h-3.5 w-3.5" />
@@ -306,13 +262,13 @@ function OwnersPageContent() {
                         variant="ghost"
                         size="icon-sm"
                         className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                        disabled={deletingId === shareholder.id}
+                        disabled={deletingId === category.id}
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDelete(shareholder);
+                          handleDelete(category);
                         }}
                       >
-                        {deletingId === shareholder.id ? (
+                        {deletingId === category.id ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : (
                           <Trash2 className="h-3.5 w-3.5" />
@@ -327,63 +283,28 @@ function OwnersPageContent() {
         </Table>
       </Card>
 
-      {/* مودال افزودن / ویرایش مالک */}
+      {/* مودال افزودن / ویرایش دسته‌بندی */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[500px]">
           <form onSubmit={handleSubmit} className="space-y-6">
             <DialogHeader className="text-right">
               <DialogTitle>
-                {editingId ? "ویرایش مالک" : "افزودن مالک جدید"}
+                {editingId ? "ویرایش دسته‌بندی" : "افزودن دسته‌بندی جدید"}
               </DialogTitle>
               <DialogDescription>
-                اطلاعات مالک را وارد کنید
+                نام دسته‌بندی را وارد کنید
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-5">
-              <div className="space-y-2 text-right">
-                <Label htmlFor="shareholder-fullName">نام مالک</Label>
-                <Input
-                  id="shareholder-fullName"
-                  placeholder="مثلاً: حاجی سهراب"
-                  value={form.fullName}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, fullName: e.target.value }))
-                  }
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                <div className="space-y-2 text-right">
-                  <Label htmlFor="shareholder-contact">شماره تماس</Label>
-                  <Input
-                    id="shareholder-contact"
-                    type="tel"
-                    dir="ltr"
-                    placeholder="07XXXXXXXX"
-                    value={form.contact}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, contact: e.target.value }))
-                    }
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2 text-right">
-                  <Label htmlFor="shareholder-idNumber">شماره شناسایی</Label>
-                  <Input
-                    id="shareholder-idNumber"
-                    dir="ltr"
-                    placeholder="مثلاً: SH-0101"
-                    value={form.idNumber}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, idNumber: e.target.value }))
-                    }
-                    required
-                  />
-                </div>
-              </div>
+            <div className="space-y-2 text-right">
+              <Label htmlFor="category-name">نام دسته‌بندی</Label>
+              <Input
+                id="category-name"
+                placeholder="مثلاً: بخش اسناد"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
             </div>
 
             {formError && (
@@ -412,7 +333,7 @@ function OwnersPageContent() {
                   ? "در حال ذخیره..."
                   : editingId
                     ? "ذخیره تغییرات"
-                    : "افزودن مالک"}
+                    : "افزودن دسته‌بندی"}
               </Button>
             </DialogFooter>
           </form>
@@ -420,5 +341,4 @@ function OwnersPageContent() {
       </Dialog>
     </div>
   );
-
 }

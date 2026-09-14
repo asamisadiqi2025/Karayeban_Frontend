@@ -1,14 +1,14 @@
-
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Search, Pencil, Trash2, Landmark, Loader2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Warehouse, Loader2 } from "lucide-react";
 
 import { PageHeader } from "@/components/server/dashboard/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -28,32 +28,32 @@ import {
 } from "@/components/ui/table";
 
 import {
-  fetchShareholders,
-  createShareholder,
-  updateShareholder,
-  deleteShareholder,
-  type Shareholder,
-} from "@/services/shareholder.service";
+  fetchWarehouses,
+  createWarehouse,
+  updateWarehouse,
+  deleteWarehouse,
+  type Warehouse as TWarehouse,
+} from "@/services/warehouse.service";
 import { extractApiErrorMessage } from "@/services/client";
 import { ToastProvider, useToast } from "@/components/client/toast";
 
 const emptyForm = {
-  fullName: "",
-  contact: "",
-  idNumber: "",
+  name: "",
+  location: "",
+  details: "",
 };
 
-export default function OwnersPage() {
+export default function WarehousePage() {
   return (
     <ToastProvider>
-      <OwnersPageContent />
+      <WarehousePageContent />
     </ToastProvider>
   );
 }
 
-function OwnersPageContent() {
+function WarehousePageContent() {
   const toast = useToast();
-  const [shareholders, setShareholders] = useState<Shareholder[]>([]);
+  const [warehouses, setWarehouses] = useState<TWarehouse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -69,10 +69,10 @@ function OwnersPageContent() {
     setLoading(true);
     setError(null);
     try {
-      const result = await fetchShareholders();
-      setShareholders(Array.isArray(result) ? result : []);
+      const result = await fetchWarehouses();
+      setWarehouses(Array.isArray(result) ? result : []);
     } catch (err) {
-      setError(extractApiErrorMessage(err, "خطا در دریافت مالکین"));
+      setError(extractApiErrorMessage(err, "خطا در دریافت گدام‌ها"));
     } finally {
       setLoading(false);
     }
@@ -80,14 +80,14 @@ function OwnersPageContent() {
 
   useEffect(() => {
     let cancelled = false;
-    fetchShareholders()
+    fetchWarehouses()
       .then((result) => {
         if (cancelled) return;
-        setShareholders(Array.isArray(result) ? result : []);
+        setWarehouses(Array.isArray(result) ? result : []);
       })
       .catch((err) => {
         if (cancelled) return;
-        setError(extractApiErrorMessage(err, "خطا در دریافت مالکین"));
+        setError(extractApiErrorMessage(err, "خطا در دریافت گدام‌ها"));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -98,15 +98,14 @@ function OwnersPageContent() {
   }, []);
 
   const filtered = useMemo(() => {
-    return shareholders.filter((s) => {
+    return warehouses.filter((w) => {
       const matchesQuery =
         query.trim() === "" ||
-        s.fullName.includes(query) ||
-        s.contact.includes(query) ||
-        s.idNumber.includes(query);
+        w.name.includes(query) ||
+        w.location.includes(query);
       return matchesQuery;
     });
-  }, [shareholders, query]);
+  }, [warehouses, query]);
 
   function openCreateDialog() {
     setEditingId(null);
@@ -115,25 +114,25 @@ function OwnersPageContent() {
     setDialogOpen(true);
   }
 
-  function openEditDialog(shareholder: Shareholder) {
-    setEditingId(shareholder.id);
+  function openEditDialog(warehouse: TWarehouse) {
+    setEditingId(warehouse.id);
     setForm({
-      fullName: shareholder.fullName,
-      contact: shareholder.contact,
-      idNumber: shareholder.idNumber,
+      name: warehouse.name,
+      location: warehouse.location,
+      details: warehouse.details,
     });
     setFormError(null);
     setDialogOpen(true);
   }
 
-  async function handleDelete(shareholder: Shareholder) {
-    setDeletingId(shareholder.id);
+  async function handleDelete(warehouse: TWarehouse) {
+    setDeletingId(warehouse.id);
     try {
-      await deleteShareholder(shareholder.id);
-      setShareholders((prev) => prev.filter((s) => s.id !== shareholder.id));
-      toast.success("مالک با موفقیت حذف شد");
+      await deleteWarehouse(warehouse.id);
+      setWarehouses((prev) => prev.filter((w) => w.id !== warehouse.id));
+      toast.success("گدام با موفقیت حذف شد");
     } catch (err) {
-      toast.error(extractApiErrorMessage(err, "حذف مالک ناموفق بود"));
+      toast.error(extractApiErrorMessage(err, "حذف گدام ناموفق بود"));
     } finally {
       setDeletingId(null);
     }
@@ -143,41 +142,37 @@ function OwnersPageContent() {
     e.preventDefault();
     setFormError(null);
 
-    if (!form.fullName.trim()) {
-      setFormError("نام مالک الزامی است");
+    if (!form.name.trim()) {
+      setFormError("نام گدام الزامی است");
       return;
     }
-    if (!form.contact.trim()) {
-      setFormError("شماره تماس الزامی است");
-      return;
-    }
-    if (!form.idNumber.trim()) {
-      setFormError("شماره شناسایی الزامی است");
+    if (!form.location.trim()) {
+      setFormError("موقعیت گدام الزامی است");
       return;
     }
 
     const payload = {
-      fullName: form.fullName.trim(),
-      contact: form.contact.trim(),
-      idNumber: form.idNumber.trim(),
+      name: form.name.trim(),
+      location: form.location.trim(),
+      details: form.details.trim(),
     };
 
     setSaving(true);
     try {
       if (editingId) {
-        const updated = await updateShareholder(editingId, payload);
-        setShareholders((prev) =>
-          prev.map((s) => (s.id === editingId ? updated : s)),
+        const updated = await updateWarehouse(editingId, payload);
+        setWarehouses((prev) =>
+          prev.map((w) => (w.id === editingId ? updated : w)),
         );
-        toast.success("مالک با موفقیت بروزرسانی شد");
+        toast.success("گدام با موفقیت بروزرسانی شد");
       } else {
-        const created = await createShareholder(payload);
-        setShareholders((prev) => [created, ...prev]);
-        toast.success("مالک جدید با موفقیت ثبت شد");
+        const created = await createWarehouse(payload);
+        setWarehouses((prev) => [created, ...prev]);
+        toast.success("گدام جدید با موفقیت ثبت شد");
       }
       setDialogOpen(false);
     } catch (err) {
-      toast.error(extractApiErrorMessage(err, "ثبت مالک ناموفق بود"));
+      toast.error(extractApiErrorMessage(err, "ثبت گدام ناموفق بود"));
     } finally {
       setSaving(false);
     }
@@ -186,12 +181,12 @@ function OwnersPageContent() {
   return (
     <div>
       <PageHeader
-        title="مالکین"
-        description="مدیریت اطلاعات مالکین"
+        title="گدام‌ها"
+        description="مدیریت گدام‌ها"
         action={
           <Button onClick={openCreateDialog}>
             <Plus data-icon="inline-start" />
-            افزودن مالک جدید
+            گدام جدید
           </Button>
         }
       />
@@ -200,7 +195,7 @@ function OwnersPageContent() {
         <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-sm font-semibold text-foreground">
-              همه مالکین
+              همه گدام‌ها
               {!loading && (
                 <span className="mr-1.5 text-xs font-normal text-muted-foreground">
                   ({filtered.length.toLocaleString("fa-AF")} مورد)
@@ -213,8 +208,8 @@ function OwnersPageContent() {
             <div className="relative">
               <Search className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="جستجوی نام، تماس یا شماره شناسایی..."
-                className="w-full pr-8 sm:w-64"
+                placeholder="جستجوی گدام..."
+                className="w-full pr-8 sm:w-56"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
@@ -225,9 +220,9 @@ function OwnersPageContent() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-right pr-5">نام مالک</TableHead>
-              <TableHead className="text-right">شماره تماس</TableHead>
-              <TableHead className="text-right">شماره شناسایی</TableHead>
+              <TableHead className="text-right">نام گدام</TableHead>
+              <TableHead className="text-right">موقعیت</TableHead>
+              <TableHead className="text-right">جزییات</TableHead>
               <TableHead className="text-left">عملیات</TableHead>
             </TableRow>
           </TableHeader>
@@ -258,37 +253,31 @@ function OwnersPageContent() {
                   colSpan={4}
                   className="py-10 text-center text-muted-foreground"
                 >
-                  مالکی یافت نشد
+                  گدامی یافت نشد
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((shareholder) => (
+              filtered.map((warehouse) => (
                 <TableRow
-                  key={shareholder.id}
+                  key={warehouse.id}
                   className="cursor-pointer hover:bg-muted/40"
-                  onClick={() => openEditDialog(shareholder)}
+                  onClick={() => openEditDialog(warehouse)}
                 >
-                  <TableCell className="text-right">
+                  <TableCell>
                     <div className="flex items-center gap-2">
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">
-                        <Landmark className="h-3.5 w-3.5 text-muted-foreground" />
+                        <Warehouse className="h-3.5 w-3.5 text-muted-foreground" />
                       </div>
                       <span className="font-medium text-foreground">
-                        {shareholder.fullName}
+                        {warehouse.name}
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell
-                    dir="ltr"
-                    className="text-right text-muted-foreground"
-                  >
-                    {shareholder.contact}
+                  <TableCell className="text-muted-foreground">
+                    {warehouse.location}
                   </TableCell>
-                  <TableCell
-                    dir="ltr"
-                    className="text-right text-muted-foreground"
-                  >
-                    {shareholder.idNumber}
+                  <TableCell className="max-w-[280px] truncate text-muted-foreground">
+                    {warehouse.details || "—"}
                   </TableCell>
                   <TableCell className="text-left">
                     <div className="flex items-center justify-end gap-1">
@@ -297,7 +286,7 @@ function OwnersPageContent() {
                         size="icon-sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          openEditDialog(shareholder);
+                          openEditDialog(warehouse);
                         }}
                       >
                         <Pencil className="h-3.5 w-3.5" />
@@ -306,13 +295,13 @@ function OwnersPageContent() {
                         variant="ghost"
                         size="icon-sm"
                         className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                        disabled={deletingId === shareholder.id}
+                        disabled={deletingId === warehouse.id}
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDelete(shareholder);
+                          handleDelete(warehouse);
                         }}
                       >
-                        {deletingId === shareholder.id ? (
+                        {deletingId === warehouse.id ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : (
                           <Trash2 className="h-3.5 w-3.5" />
@@ -327,62 +316,69 @@ function OwnersPageContent() {
         </Table>
       </Card>
 
-      {/* مودال افزودن / ویرایش مالک */}
+      {/* مودال افزودن / ویرایش گدام */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <form onSubmit={handleSubmit} className="space-y-6">
             <DialogHeader className="text-right">
               <DialogTitle>
-                {editingId ? "ویرایش مالک" : "افزودن مالک جدید"}
+                {editingId ? "ویرایش گدام" : "افزودن گدام جدید"}
               </DialogTitle>
               <DialogDescription>
-                اطلاعات مالک را وارد کنید
+                اطلاعات گدام را وارد کنید
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-5">
-              <div className="space-y-2 text-right">
-                <Label htmlFor="shareholder-fullName">نام مالک</Label>
-                <Input
-                  id="shareholder-fullName"
-                  placeholder="مثلاً: حاجی سهراب"
-                  value={form.fullName}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, fullName: e.target.value }))
-                  }
-                  required
-                />
-              </div>
-
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <div className="space-y-2 text-right">
-                  <Label htmlFor="shareholder-contact">شماره تماس</Label>
+                  <Label htmlFor="warehouse-name">نام گدام</Label>
                   <Input
-                    id="shareholder-contact"
-                    type="tel"
-                    dir="ltr"
-                    placeholder="07XXXXXXXX"
-                    value={form.contact}
+                    id="warehouse-name"
+                    placeholder="مثلاً: گدام بغل"
+                    value={form.name}
                     onChange={(e) =>
-                      setForm((f) => ({ ...f, contact: e.target.value }))
+                      setForm((f) => ({
+                        ...f,
+                        name: e.target.value,
+                      }))
                     }
                     required
                   />
                 </div>
 
                 <div className="space-y-2 text-right">
-                  <Label htmlFor="shareholder-idNumber">شماره شناسایی</Label>
+                  <Label htmlFor="warehouse-location">موقعیت</Label>
                   <Input
-                    id="shareholder-idNumber"
-                    dir="ltr"
-                    placeholder="مثلاً: SH-0101"
-                    value={form.idNumber}
+                    id="warehouse-location"
+                    placeholder="مثلاً: طبقه هم کف"
+                    value={form.location}
                     onChange={(e) =>
-                      setForm((f) => ({ ...f, idNumber: e.target.value }))
+                      setForm((f) => ({
+                        ...f,
+                        location: e.target.value,
+                      }))
                     }
                     required
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2 text-right">
+                <Label htmlFor="warehouse-details">جزییات</Label>
+
+                <Textarea
+                  id="warehouse-details"
+                  rows={4}
+                  placeholder="توضیحات تکمیلی درباره این گدام"
+                  value={form.details}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      details: e.target.value,
+                    }))
+                  }
+                />
               </div>
             </div>
 
@@ -412,7 +408,7 @@ function OwnersPageContent() {
                   ? "در حال ذخیره..."
                   : editingId
                     ? "ذخیره تغییرات"
-                    : "افزودن مالک"}
+                    : "افزودن گدام"}
               </Button>
             </DialogFooter>
           </form>
@@ -420,5 +416,4 @@ function OwnersPageContent() {
       </Dialog>
     </div>
   );
-
 }
