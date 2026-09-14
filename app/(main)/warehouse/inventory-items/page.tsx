@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Search, Pencil, Trash2, Package, Loader2 } from "lucide-react";
 
 import { PageHeader } from "@/components/server/dashboard/page-header";
@@ -63,6 +64,7 @@ export default function InventoryItemsPage() {
 
 function InventoryItemsPageContent() {
   const toast = useToast();
+  const router = useRouter();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -317,7 +319,7 @@ function InventoryItemsPageContent() {
                 <TableRow
                   key={item.id}
                   className="cursor-pointer hover:bg-muted/40"
-                  onClick={() => openEditDialog(item)}
+                  onClick={() => router.push(`/warehouse/inventory-items/${item.id}`)}
                 >
                   <TableCell>
                     <div className="flex items-center gap-2">

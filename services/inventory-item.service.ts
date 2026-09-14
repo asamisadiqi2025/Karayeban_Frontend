@@ -28,14 +28,42 @@ export interface UpdateInventoryItemPayload {
   };
 }
 
+export interface InventoryTransaction {
+  id: string;
+  marketId: string;
+  warehouseId: string;
+  itemId: string;
+  type: string;
+  quantity: string;
+  unitPrice: string | null;
+  totalAmount: string;
+  costOfGoodsSold: string | null;
+  accountId: string | null;
+  currencyId: string;
+  transactionDate: string;
+  notes: string;
+  createdById: string;
+  createdAt: string;
+}
+
 export interface InventoryItem {
   id: string;
   name: string;
   unit: string;
+  quantity: string;
+  averageCost: string;
   warehouseId: string;
   currencyId: string;
   categoryId: string;
   details: string;
+  isActive: boolean;
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+  warehouse: { id: string; name: string } | null;
+  category: { id: string; name: string } | null;
+  currency: { id: string; code: string; name: string } | null;
+  transactions: InventoryTransaction[];
   openingStock: {
     quantity: number;
     unitCost: number;
@@ -50,6 +78,8 @@ interface RawInventoryItem {
   item_name?: string;
   itemName?: string;
   unit?: string;
+  quantity?: string | number;
+  averageCost?: string | number;
   warehouseId?: string;
   warehouse_id?: string;
   warehouseID?: string;
@@ -61,6 +91,14 @@ interface RawInventoryItem {
   categoryID?: string;
   details?: string;
   description?: string;
+  isActive?: boolean;
+  isDeleted?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  warehouse?: { id?: string; name?: string } | null;
+  category?: { id?: string; name?: string } | null;
+  currency?: { id?: string; code?: string; name?: string } | null;
+  transactions?: Array<Record<string, unknown>>;
   openingStock?: {
     quantity?: number;
     unitCost?: number;
@@ -75,14 +113,43 @@ interface RawInventoryItem {
 
 function normalizeInventoryItem(raw: RawInventoryItem): InventoryItem {
   const stock: Record<string, unknown> = (raw.openingStock ?? raw.opening_stock ?? {}) as Record<string, unknown>;
+  const transactions: InventoryTransaction[] = Array.isArray(raw.transactions)
+    ? raw.transactions.map((t) => ({
+        id: String(t.id ?? ""),
+        marketId: String(t.marketId ?? ""),
+        warehouseId: String(t.warehouseId ?? ""),
+        itemId: String(t.itemId ?? ""),
+        type: String(t.type ?? ""),
+        quantity: String(t.quantity ?? "0"),
+        unitPrice: t.unitPrice != null ? String(t.unitPrice) : null,
+        totalAmount: String(t.totalAmount ?? "0"),
+        costOfGoodsSold: t.costOfGoodsSold != null ? String(t.costOfGoodsSold) : null,
+        accountId: t.accountId != null ? String(t.accountId) : null,
+        currencyId: String(t.currencyId ?? ""),
+        transactionDate: String(t.transactionDate ?? ""),
+        notes: String(t.notes ?? ""),
+        createdById: String(t.createdById ?? ""),
+        createdAt: String(t.createdAt ?? ""),
+      }))
+    : [];
   return {
     id: raw.id ?? raw._id ?? "",
     name: raw.name ?? raw.item_name ?? raw.itemName ?? "",
     unit: raw.unit ?? "",
+    quantity: String(raw.quantity ?? "0"),
+    averageCost: String(raw.averageCost ?? "0"),
     warehouseId: raw.warehouseId ?? raw.warehouse_id ?? raw.warehouseID ?? "",
     currencyId: raw.currencyId ?? raw.currency_id ?? raw.currencyID ?? "",
     categoryId: raw.categoryId ?? raw.category_id ?? raw.categoryID ?? "",
     details: raw.details ?? raw.description ?? "",
+    isActive: raw.isActive ?? true,
+    isDeleted: raw.isDeleted ?? false,
+    createdAt: raw.createdAt ?? "",
+    updatedAt: raw.updatedAt ?? "",
+    warehouse: raw.warehouse ? { id: String(raw.warehouse.id ?? ""), name: String(raw.warehouse.name ?? "") } : null,
+    category: raw.category ? { id: String(raw.category.id ?? ""), name: String(raw.category.name ?? "") } : null,
+    currency: raw.currency ? { id: String(raw.currency.id ?? ""), code: String(raw.currency.code ?? ""), name: String(raw.currency.name ?? "") } : null,
+    transactions,
     openingStock: {
       quantity: typeof stock.quantity === "number" ? stock.quantity : Number(stock.quantity ?? 0),
       unitCost: typeof stock.unitCost === "number" ? stock.unitCost : Number(stock.unit_cost ?? 0),
