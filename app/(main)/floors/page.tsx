@@ -357,7 +357,7 @@ function FloorsPageContent() {
                     id="floor-number"
                     type="number"
                     step="1"
-                    min="0"
+                    min="-2"
                     dir="ltr"
                     placeholder="مثلاً: 0"
                     value={form.floorNumber}
