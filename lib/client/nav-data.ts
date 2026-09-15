@@ -106,12 +106,18 @@ export const navSections: NavSection[] = [
         ],
       },
 
-      // قراردادها
+      // مدیریت قراردادها
       {
-        label: "قراردادها",
-        href: "/contracts",
+        label: "ندیریت مدیریت قراردادها",
+        href: "/contracts-management",
         icon: FileText,
-        badge: "3",
+        submenu: [
+          {
+            label: "قراردادها",
+            href: "/contracts",
+          },
+         
+        ],
       },
 
       // برق
@@ -153,10 +159,7 @@ export const navSections: NavSection[] = [
             label: " انتقال بانکی واحدات یکسان",
             href: "/finance/bank-transfers",
           },
-          {
-            label: "انتقال بانکی واحدات متفاوت",
-            href: "/finance/bank-transfers-different-units",
-          },
+        
           {
             label: "تراکنش‌ها",
             href: "/finance/transactions",
@@ -175,7 +178,18 @@ export const navSections: NavSection[] = [
             label: "گدام",
             href: "/warehouse",
           },
-        
+          {
+            label: "دسته بندی",
+            href: "/warehouse/categories",
+          },
+          {
+            label: "اضافه کردن به گدام",
+            href: "/warehouse/inventory-items",
+          },
+          {
+            label: "خلاصه اجناس",
+            href: "/inventory/items/summary",
+          },
         ],
       },
       // مدیریت مصارف

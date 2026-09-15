@@ -27,26 +27,26 @@ import {
 } from "@/components/ui/table";
 
 import {
-  fetchExpenseCategories,
-  createExpenseCategory,
-  updateExpenseCategory,
-  deleteExpenseCategory,
-  type ExpenseCategory,
-} from "@/services/expense-category.service";
+  fetchInventoryCategories,
+  createInventoryCategory,
+  updateInventoryCategory,
+  deleteInventoryCategory,
+  type InventoryCategory,
+} from "@/services/inventory-category.service";
 import { extractApiErrorMessage } from "@/services/client";
 import { ToastProvider, useToast } from "@/components/client/toast";
 
-export default function ExpenseCategoriesPage() {
+export default function CategoriesPage() {
   return (
     <ToastProvider>
-      <ExpenseCategoriesPageContent />
+      <CategoriesPageContent />
     </ToastProvider>
   );
 }
 
-function ExpenseCategoriesPageContent() {
+function CategoriesPageContent() {
   const toast = useToast();
-  const [categories, setCategories] = useState<ExpenseCategory[]>([]);
+  const [categories, setCategories] = useState<InventoryCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -62,7 +62,7 @@ function ExpenseCategoriesPageContent() {
     setLoading(true);
     setError(null);
     try {
-      const result = await fetchExpenseCategories();
+      const result = await fetchInventoryCategories();
       setCategories(Array.isArray(result) ? result : []);
     } catch (err) {
       setError(extractApiErrorMessage(err, "خطا در دریافت دسته‌بندی‌ها"));
@@ -73,7 +73,7 @@ function ExpenseCategoriesPageContent() {
 
   useEffect(() => {
     let cancelled = false;
-    fetchExpenseCategories()
+    fetchInventoryCategories()
       .then((result) => {
         if (cancelled) return;
         setCategories(Array.isArray(result) ? result : []);
@@ -103,17 +103,17 @@ function ExpenseCategoriesPageContent() {
     setDialogOpen(true);
   }
 
-  function openEditDialog(category: ExpenseCategory) {
+  function openEditDialog(category: InventoryCategory) {
     setEditingId(category.id);
     setName(category.name);
     setFormError(null);
     setDialogOpen(true);
   }
 
-  async function handleDelete(category: ExpenseCategory) {
+  async function handleDelete(category: InventoryCategory) {
     setDeletingId(category.id);
     try {
-      await deleteExpenseCategory(category.id);
+      await deleteInventoryCategory(category.id);
       setCategories((prev) => prev.filter((c) => c.id !== category.id));
       toast.success("دسته‌بندی با موفقیت حذف شد");
     } catch (err) {
@@ -135,13 +135,13 @@ function ExpenseCategoriesPageContent() {
     setSaving(true);
     try {
       if (editingId) {
-        const updated = await updateExpenseCategory(editingId, { name: name.trim() });
+        const updated = await updateInventoryCategory(editingId, { name: name.trim() });
         setCategories((prev) =>
           prev.map((c) => (c.id === editingId ? updated : c)),
         );
         toast.success("دسته‌بندی با موفقیت بروزرسانی شد");
       } else {
-        const created = await createExpenseCategory({ name: name.trim() });
+        const created = await createInventoryCategory({ name: name.trim() });
         setCategories((prev) => [created, ...prev]);
         toast.success("دسته‌بندی جدید با موفقیت ثبت شد");
       }
@@ -156,8 +156,8 @@ function ExpenseCategoriesPageContent() {
   return (
     <div>
       <PageHeader
-        title="دسته‌بندی مصارف"
-        description="مدیریت دسته‌بندی مصارف"
+        title="دسته‌بندی‌های انبار"
+        description="مدیریت دسته‌بندی‌های انبار"
         action={
           <Button onClick={openCreateDialog}>
             <Plus data-icon="inline-start" />
@@ -283,6 +283,7 @@ function ExpenseCategoriesPageContent() {
         </Table>
       </Card>
 
+      {/* مودال افزودن / ویرایش دسته‌بندی */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -299,7 +300,7 @@ function ExpenseCategoriesPageContent() {
               <Label htmlFor="category-name">نام دسته‌بندی</Label>
               <Input
                 id="category-name"
-                placeholder="مثلاً: تعمیرات"
+                placeholder="مثلاً: بخش اسناد"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
