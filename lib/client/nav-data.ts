@@ -106,12 +106,18 @@ export const navSections: NavSection[] = [
         ],
       },
 
-      // قراردادها
+      // مدیریت قراردادها
       {
-        label: "قراردادها",
-        href: "/contracts",
+        label: "ندیریت مدیریت قراردادها",
+        href: "/contracts-management",
         icon: FileText,
-        badge: "3",
+        submenu: [
+          {
+            label: "قراردادها",
+            href: "/contracts",
+          },
+         
+        ],
       },
 
       // برق
