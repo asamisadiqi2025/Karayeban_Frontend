@@ -20,6 +20,7 @@ import {
   type RegisterPayload,
 } from "@/services/auth.service";
 import { clearAuth } from "@/lib/client/auth/token-storage";
+import { initCrossTabSync, destroyCrossTabSync } from "@/lib/client/auth/cross-tab-sync";
 import { extractApiErrorMessage } from "@/services/client";
 
 interface AuthContextValue {
@@ -61,6 +62,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, []);
+
+  // همگام‌سازی خروج بین تب‌ها
+  useEffect(() => {
+    initCrossTabSync(() => {
+      setUser(null);
+      router.push("/login");
+    });
+
+    return () => {
+      destroyCrossTabSync();
+    };
+  }, [router]);
 
   const login = useCallback(
     async (payload: LoginPayload) => {
