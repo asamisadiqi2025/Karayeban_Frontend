@@ -89,6 +89,24 @@ export const navSections: NavSection[] = [
         ],
       },
 
+
+           // مدیریت سهامدران
+      {
+        label: " مدیریت سهامداران",
+        href: "/shareholders-management",
+        icon: FileText,
+        submenu: [
+          {
+            label: "سهامداران",
+            href: "/shareholders",
+          },
+          {
+            label: "سهامداری",
+            href: "/shareholders/equity",
+          },
+        ],
+      },
+
       // اجاره
       {
         label: "اجاره",
@@ -108,7 +126,7 @@ export const navSections: NavSection[] = [
 
       // مدیریت قراردادها
       {
-        label: "ندیریت مدیریت قراردادها",
+        label: "مدیریت قراردادها",
         href: "/contracts-management",
         icon: FileText,
         submenu: [
