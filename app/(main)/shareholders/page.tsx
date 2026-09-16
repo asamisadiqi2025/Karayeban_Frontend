@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Search, Pencil, Trash2, Landmark, Loader2 } from "lucide-react";
 
 import { PageHeader } from "@/components/server/dashboard/page-header";
@@ -52,6 +53,7 @@ export default function OwnersPage() {
 }
 
 function OwnersPageContent() {
+  const router = useRouter();
   const toast = useToast();
   const [shareholders, setShareholders] = useState<Shareholder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -266,7 +268,7 @@ function OwnersPageContent() {
                 <TableRow
                   key={shareholder.id}
                   className="cursor-pointer hover:bg-muted/40"
-                  onClick={() => openEditDialog(shareholder)}
+                  onClick={() => router.push(`/shareholders/${shareholder.id}`)}
                 >
                   <TableCell className="text-right">
                     <div className="flex items-center gap-2">

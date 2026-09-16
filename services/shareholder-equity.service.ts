@@ -15,12 +15,12 @@ export interface ShareholderEquity {
 }
 
 export interface CreateEquityPayload {
-  entries: { shareholderId: string; percentage: number }[];
+  percentage: number;
   notes: string;
 }
 
 export interface UpdateEquityPayload {
-  entries?: { shareholderId: string; percentage: number }[];
+  percentage?: number;
   notes?: string;
 }
 
@@ -64,7 +64,7 @@ function normalizeEquity(raw: RawEquity): ShareholderEquity {
 }
 
 export async function fetchEquities(shareholderId: string): Promise<ShareholderEquity[]> {
-  const { data } = await apiClient.get(`/shareholders/${shareholderId}/equity`);
+  const { data } = await apiClient.get(`/shareholders/${shareholderId}`);
   const items = Array.isArray(data)
     ? data
     : data?.data ?? data?.results ?? [];
