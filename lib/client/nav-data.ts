@@ -79,10 +79,6 @@ export const navSections: NavSection[] = [
             href: "/tenants",
           },
           {
-            label: "مالکین",
-            href: "/owners",
-          },
-          {
             label: "ضامن",
             href: "/persons/guarantor",
           },
