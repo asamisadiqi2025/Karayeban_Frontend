@@ -260,8 +260,8 @@ export const navSections: NavSection[] = [
             href: "/settings/currencies/adtocurrency",
           },
           {
-            label: "تنطیمات قرار داد",
-            href: "/settings/contract-setup",
+            label: "طراحی قرارداد",
+            href: "/settings/contract-design",
           },
           {
             label: "بانک‌ها",

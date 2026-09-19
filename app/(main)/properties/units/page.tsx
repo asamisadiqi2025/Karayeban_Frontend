@@ -43,10 +43,12 @@ import {
   type UnitType,
 } from "@/services/unit.service";
 import { fetchFloors, type Floor } from "@/services/floor.service";
+import { fetchContracts, type Contract } from "@/services/contract.service";
 import { extractApiErrorMessage } from "@/services/client";
 import { fetchMyMarket } from "@/services/market.service";
 import { ToastProvider, useToast } from "@/components/client/toast";
 import { useAuth } from "@/contexts/auth-context";
+import { Badge } from "@/components/ui/badge";
 
 const UNIT_TYPE_LABEL: Record<UnitType, string> = {
   shop: "دوکان",
@@ -76,6 +78,7 @@ function PropertiesUnitsPageContent() {
   const { user } = useAuth();
   const [units, setUnits] = useState<Unit[]>([]);
   const [floors, setFloors] = useState<Floor[]>([]);
+  const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -91,9 +94,10 @@ function PropertiesUnitsPageContent() {
     setLoading(true);
     setError(null);
     try {
-      const [unitsResult, floorsResult] = await Promise.allSettled([
+      const [unitsResult, floorsResult, contractsResult] = await Promise.allSettled([
         fetchUnits(),
         fetchFloors(),
+        fetchContracts(),
       ]);
       setUnits(
         unitsResult.status === "fulfilled"
@@ -103,6 +107,11 @@ function PropertiesUnitsPageContent() {
       setFloors(
         floorsResult.status === "fulfilled"
           ? Array.isArray(floorsResult.value) ? floorsResult.value : []
+          : [],
+      );
+      setContracts(
+        contractsResult.status === "fulfilled"
+          ? Array.isArray(contractsResult.value) ? contractsResult.value : []
           : [],
       );
       if (unitsResult.status === "rejected") {
@@ -117,8 +126,8 @@ function PropertiesUnitsPageContent() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.allSettled([fetchUnits(), fetchFloors()]).then(
-      ([unitsResult, floorsResult]) => {
+    Promise.allSettled([fetchUnits(), fetchFloors(), fetchContracts()]).then(
+      ([unitsResult, floorsResult, contractsResult]) => {
         if (cancelled) return;
         setUnits(
           unitsResult.status === "fulfilled"
@@ -128,6 +137,11 @@ function PropertiesUnitsPageContent() {
         setFloors(
           floorsResult.status === "fulfilled"
             ? Array.isArray(floorsResult.value) ? floorsResult.value : []
+            : [],
+        );
+        setContracts(
+          contractsResult.status === "fulfilled"
+            ? Array.isArray(contractsResult.value) ? contractsResult.value : []
             : [],
         );
         if (unitsResult.status === "rejected") {
@@ -147,6 +161,14 @@ function PropertiesUnitsPageContent() {
     (id: string) => floors.find((f) => f.id === id)?.name,
     [floors],
   );
+
+  const rentedUnitIds = useMemo(() => {
+    const s = new Set<string>();
+    contracts.forEach((c) => {
+      if (c.status === "active") s.add(c.shopId);
+    });
+    return s;
+  }, [contracts]);
 
   const filtered = useMemo(() => {
     return units.filter((u) => {
@@ -297,6 +319,7 @@ function PropertiesUnitsPageContent() {
               <TableHead className="text-right">شماره دوکان</TableHead>
               <TableHead className="text-right">طبقه</TableHead>
               <TableHead className="text-right">نوع</TableHead>
+              <TableHead className="text-right">وضعیت</TableHead>
               <TableHead className="text-right">مساحت</TableHead>
               <TableHead className="text-right">موقعیت</TableHead>
               <TableHead className="text-right">جزییات</TableHead>
@@ -306,7 +329,7 @@ function PropertiesUnitsPageContent() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-10">
+                <TableCell colSpan={8} className="py-10">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <Loader2 className="h-6 w-6 animate-spin" />
                     <span className="text-sm">در حال بارگذاری...</span>
@@ -315,7 +338,7 @@ function PropertiesUnitsPageContent() {
               </TableRow>
             ) : error ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-10">
+                <TableCell colSpan={8} className="py-10">
                   <div className="flex flex-col items-center gap-3 text-center">
                     <p className="text-sm text-muted-foreground">{error}</p>
                     <Button variant="outline" size="sm" onClick={load}>
@@ -327,7 +350,7 @@ function PropertiesUnitsPageContent() {
             ) : filtered.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={8}
                   className="py-10 text-center text-muted-foreground"
                 >
                   ملکی یافت نشد
@@ -355,6 +378,13 @@ function PropertiesUnitsPageContent() {
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {UNIT_TYPE_LABEL[unit.type] ?? unit.type}
+                  </TableCell>
+                  <TableCell>
+                    {rentedUnitIds.has(unit.id) ? (
+                      <Badge variant="success">اجاره</Badge>
+                    ) : (
+                      <Badge variant="outline">خالی</Badge>
+                    )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {unit.area > 0

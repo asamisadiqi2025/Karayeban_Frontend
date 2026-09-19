@@ -1,0 +1,44 @@
+@import url("https://db.onlinewebfonts.com/c/3671adca6f650c92b83f906e49656986?family=B+Nazanin");
+
+.print-area {
+  font-family: "B Nazanin", Tahoma, Arial, sans-serif;
+}
+
+@page {
+  size: A4;
+  margin: 10mm 15mm;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+
+  .print-area {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    overflow: visible;
+  }
+
+  .print-area > div {
+    width: 100% !important;
+    max-width: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    overflow-wrap: break-word !important;
+    word-wrap: break-word !important;
+    box-sizing: border-box !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
