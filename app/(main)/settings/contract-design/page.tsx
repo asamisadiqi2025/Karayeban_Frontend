@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Save, RotateCcw, Loader2 } from "lucide-react";
 
 import { PageHeader } from "@/components/server/dashboard/page-header";
@@ -19,6 +19,8 @@ import {
   loadContractDesignSettings,
   saveContractDesignSettings,
   defaultContractDesignSettings,
+  PAPER_SIZE_PRESETS,
+  type PaperSizePreset,
   type ContractDesignSettings,
 } from "@/lib/shared/contract-design";
 
@@ -48,6 +50,27 @@ export default function ContractDesignPage() {
     value: ContractDesignSettings[K],
   ) {
     setSettings((prev) => ({ ...prev, [key]: value }));
+  }
+
+  const bgFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleBackgroundImageUpload = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (!file.type.startsWith("image/")) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        update("backgroundImage", reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    },
+    [],
+  );
+
+  function handleRemoveBackgroundImage() {
+    update("backgroundImage", "");
+    if (bgFileInputRef.current) bgFileInputRef.current.value = "";
   }
 
   function handleSave() {
@@ -384,28 +407,58 @@ export default function ContractDesignPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2 text-right">
-                <Label htmlFor="pageWidth">عرض صفحه</Label>
-                <Input
-                  id="pageWidth"
-                  dir="ltr"
-                  placeholder="210mm"
-                  value={settings.pageWidth}
-                  onChange={(e) => update("pageWidth", e.target.value)}
-                />
-              </div>
-              <div className="space-y-2 text-right">
-                <Label htmlFor="pageHeight">ارتفاع صفحه</Label>
-                <Input
-                  id="pageHeight"
-                  dir="ltr"
-                  placeholder="297mm"
-                  value={settings.pageHeight}
-                  onChange={(e) => update("pageHeight", e.target.value)}
-                />
-              </div>
+            <div className="space-y-2 text-right">
+              <Label>اندازه کاغذ</Label>
+              <Select
+                value={settings.paperSize}
+                onValueChange={(v) => {
+                  const preset = (v ?? "A4") as PaperSizePreset;
+                  const dims = PAPER_SIZE_PRESETS[preset];
+                  update("paperSize", preset);
+                  if (preset !== "custom") {
+                    update("pageWidth", dims.width);
+                    update("pageHeight", dims.height);
+                  }
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="انتخاب اندازه کاغذ">
+                    {(value) => PAPER_SIZE_PRESETS[(value as PaperSizePreset) ?? "A4"]?.label ?? "A4"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(PAPER_SIZE_PRESETS) as PaperSizePreset[]).map((key) => (
+                    <SelectItem key={key} value={key}>
+                      {PAPER_SIZE_PRESETS[key].label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+            {settings.paperSize === "custom" && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2 text-right">
+                  <Label htmlFor="pageWidth">عرض صفحه</Label>
+                  <Input
+                    id="pageWidth"
+                    dir="ltr"
+                    placeholder="210mm"
+                    value={settings.pageWidth}
+                    onChange={(e) => update("pageWidth", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2 text-right">
+                  <Label htmlFor="pageHeight">ارتفاع صفحه</Label>
+                  <Input
+                    id="pageHeight"
+                    dir="ltr"
+                    placeholder="297mm"
+                    value={settings.pageHeight}
+                    onChange={(e) => update("pageHeight", e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </Card>
 
@@ -470,6 +523,72 @@ export default function ContractDesignPage() {
               </div>
             </div>
           </div>
+        </Card>
+
+        {/* پس‌زمینه */}
+        <Card className="space-y-4 p-4 lg:col-span-2">
+          <h3 className="text-sm font-semibold text-foreground">پس‌زمینه</h3>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-2 text-right">
+              <Label htmlFor="backgroundColor">رنگ پس‌زمینه</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="backgroundColor"
+                  type="color"
+                  value={settings.backgroundColor}
+                  onChange={(e) => update("backgroundColor", e.target.value)}
+                  className="h-9 w-12 cursor-pointer p-1"
+                />
+                <Input
+                  dir="ltr"
+                  value={settings.backgroundColor}
+                  onChange={(e) => update("backgroundColor", e.target.value)}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+            <div className="space-y-2 text-right">
+              <Label>تصویر پس‌زمینه</Label>
+              <div className="flex gap-2">
+                <input
+                  ref={bgFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleBackgroundImageUpload}
+                  className="hidden"
+                  id="bg-upload"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  onClick={() => bgFileInputRef.current?.click()}
+                  className="flex-1"
+                >
+                  انتخاب تصویر
+                </Button>
+                {settings.backgroundImage && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    type="button"
+                    onClick={handleRemoveBackgroundImage}
+                  >
+                    حذف
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+          {settings.backgroundImage && (
+            <div className="flex justify-center rounded-lg border border-dashed p-4">
+              <img
+                src={settings.backgroundImage}
+                alt="پیش‌نمایش پس‌زمینه"
+                className="max-h-32 rounded object-contain"
+              />
+            </div>
+          )}
         </Card>
 
         {/* نمایش بخش‌ها */}

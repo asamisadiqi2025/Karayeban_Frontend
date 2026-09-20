@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Printer } from "lucide-react";
 import Image from "next/image";
 import DatePicker from "react-multi-date-picker";
@@ -11,6 +11,10 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  loadContractDesignSettings,
+  type ContractDesignSettings,
+} from "@/lib/shared/contract-design";
 import "./contract-print.css";
 
 interface ContractData {
@@ -121,6 +125,11 @@ function Field({
 
 export default function GaleriaContractPage() {
   const [data, setData] = useState<ContractData>(initialData);
+  const [design, setDesign] = useState<ContractDesignSettings | null>(null);
+
+  useEffect(() => {
+    setDesign(loadContractDesignSettings());
+  }, []);
 
   function set<K extends keyof ContractData>(key: K) {
     return (value: string) => setData((prev) => ({ ...prev, [key]: value }));
@@ -132,12 +141,52 @@ export default function GaleriaContractPage() {
     return Number.isFinite(amount) ? String(amount / 2) : "";
   }, [data.halfAmount, data.monthlyRentAmount]);
 
+  const d = design;
+
+  const printAreaStyle: React.CSSProperties = d
+    ? {
+        fontFamily: `"${d.fontFamily}", Tahoma, Arial, sans-serif`,
+        fontSize: `${d.fontSize}px`,
+        lineHeight: d.lineHeight,
+        color: d.textColor,
+        direction: d.direction,
+        padding: `${d.paddingTop}px ${d.paddingRight}px ${d.paddingBottom}px ${d.paddingLeft}px`,
+        backgroundColor: d.backgroundColor || "#ffffff",
+        backgroundImage: d.backgroundImage ? `url(${d.backgroundImage})` : undefined,
+        backgroundSize: d.backgroundImage ? "cover" : undefined,
+        backgroundPosition: d.backgroundImage ? "center" : undefined,
+        backgroundRepeat: d.backgroundImage ? "no-repeat" : undefined,
+      }
+    : {};
+
+  const printPageStyle: React.CSSProperties = d
+    ? {
+        marginTop: `${d.marginTop}mm`,
+        marginBottom: `${d.marginBottom}mm`,
+        marginLeft: `${d.marginLeft}mm`,
+        marginRight: `${d.marginRight}mm`,
+      }
+    : {};
+
+  const pageStyleTag = useMemo(() => {
+    if (!d) return null;
+    return (
+      <style>{`
+        @page {
+          size: ${d.pageWidth || "210mm"} ${d.pageHeight || "297mm"};
+          margin: ${d.marginTop}mm ${d.marginRight}mm ${d.marginBottom}mm ${d.marginLeft}mm;
+        }
+      `}</style>
+    );
+  }, [d]);
+
   function handlePrint() {
     window.print();
   }
 
   return (
     <div>
+      {pageStyleTag}
       <PageHeader
         title="سند کرایه دوکاکین گالریا سنتر"
         description="اطلاعات متغیر سند را وارد کنید؛ پیش‌نمایش سمت راست به‌صورت زنده به‌روز می‌شود"
@@ -280,48 +329,76 @@ export default function GaleriaContractPage() {
         </div>
 
         {/* ————— پیش‌نمایش سند (دقیقاً همان چیزی که چاپ می‌شود) ————— */}
-        <div className="print-area flex justify-center">
+        <div className="print-area flex justify-center" style={printPageStyle}>
           <div
             dir="rtl"
             className="w-full max-w-[720px] border border-neutral-300 bg-white p-6 text-[15px] leading-7 text-neutral-800 shadow-sm print:max-w-none print:border-0 print:shadow-none print:overflow-visible"
+            style={printAreaStyle}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div className="shrink-0 text-right">
-                <Image
-                  src="/galeria-logo.png"
-                  alt="لوگوی گالریا سنتر"
-                  width={72}
-                  height={72}
-                  className="rounded-full"
-                />
-                <div className="mt-2 space-y-1 text-xs">
-                  <p>
-                    شماره: <Blank value={data.documentNumber} />
-                  </p>
-                  <p>
-                    تاریخ: <Blank value={data.documentDate} />
-                  </p>
-                  <p>
-                    اصل کرایه: <Blank value={data.baseRent} />
-                  </p>
+            {d?.showHeader !== false && (
+              <>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="shrink-0 text-right">
+                    {d?.logoUrl ? (
+                      <Image
+                        src={d.logoUrl}
+                        alt="لوگو"
+                        width={d?.logoSize ?? 72}
+                        height={d?.logoSize ?? 72}
+                        className="rounded-full"
+                      />
+                    ) : (
+                      <Image
+                        src="/galeria-logo.png"
+                        alt="لوگوی گالریا سنتر"
+                        width={72}
+                        height={72}
+                        className="rounded-full"
+                      />
+                    )}
+                    <div className="mt-2 space-y-1 text-xs">
+                      <p>
+                        شماره: <Blank value={data.documentNumber} />
+                      </p>
+                      <p>
+                        تاریخ: <Blank value={data.documentDate} />
+                      </p>
+                      <p>
+                        اصل کرایه: <Blank value={data.baseRent} />
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 text-center">
+                    <h1
+                      className="text-[26px] font-extrabold tracking-tight"
+                      style={{ color: d?.titleColor ?? "#c2410c" }}
+                    >
+                      گالریا سنتر
+                    </h1>
+                    <p
+                      className="font-serif text-base italic"
+                      style={{ color: d?.subtitleColor ?? "#e11d48" }}
+                    >
+                      Galeria Center
+                    </p>
+                    <p className="mt-2 text-[15px] font-bold text-blue-800">
+                      سند کرایه خط دوکاکین گالریا سنتر
+                    </p>
+                    <p className="text-[13px] font-semibold text-blue-700">
+                      واقع جاده جنوبی مسجد جامع بزرگ هرات
+                    </p>
+                  </div>
+
+                  <div
+                    className="shrink-0 border border-neutral-400"
+                    style={{ width: d?.logoSize ?? 72, height: d?.logoSize ?? 72 }}
+                  />
                 </div>
-              </div>
 
-              <div className="flex-1 text-center">
-                <h1 className="text-[26px] font-extrabold tracking-tight text-orange-700">گالریا سنتر</h1>
-                <p className="font-serif text-base italic text-rose-500">Galeria Center</p>
-                <p className="mt-2 text-[15px] font-bold text-blue-800">
-                  سند کرایه خط دوکاکین گالریا سنتر
-                </p>
-                <p className="text-[13px] font-semibold text-blue-700">
-                  واقع جاده جنوبی مسجد جامع بزرگ هرات
-                </p>
-              </div>
-
-              <div className="h-[72px] w-[72px] shrink-0 border border-neutral-400" />
-            </div>
-
-            <div className="my-4 border-t border-neutral-400" />
+                <div className="my-4 border-t border-neutral-400" />
+              </>
+            )}
 
             <p className="text-[15px] font-bold">باعث از تحریر هذا:</p>
             <p className="text-justify leading-7">
@@ -347,39 +424,47 @@ export default function GaleriaContractPage() {
               <Blank value={data.endDate} />) به کرایه داده‌ایم.
             </p>
 
-            <p className="mt-4 text-center text-[15px] font-bold">مکلفیت‌های مستاجر یا کرایه‌نشین</p>
+            {d?.showClauses !== false && (
+              <>
+                <p className="mt-4 text-center text-[15px] font-bold">مکلفیت‌های مستاجر یا کرایه‌نشین</p>
 
-            <ol className="mt-2 space-y-2 text-justify text-[14px] leading-[1.7]">
-              {CLAUSES.map((clause, index) => (
-                <li key={index}>
-                  <span className="font-bold">{index + 1}- </span>
-                  {clause}
-                </li>
-              ))}
-            </ol>
+                <ol className="mt-2 space-y-2 text-justify text-[14px] leading-[1.7]">
+                  {CLAUSES.map((clause, index) => (
+                    <li key={index}>
+                      <span className="font-bold">{index + 1}- </span>
+                      {clause}
+                    </li>
+                  ))}
+                </ol>
+              </>
+            )}
 
-            <p className="mt-4 text-center text-xs" dir="rtl">
-              (و کان ذلک فی محضر المسلمین)
-            </p>
+            {d?.showFooter !== false && (
+              <p className="mt-4 text-center text-xs" dir="rtl">
+                (و کان ذلک فی محضر المسلمین)
+              </p>
+            )}
 
-            <div className="mt-10 grid grid-cols-2 gap-x-8 gap-y-12 text-center text-[14px]">
-              <div className="space-y-6">
-                <p className="font-semibold">امضاء و نشان مالکین</p>
-                <div className="h-12 border-t border-dotted border-neutral-500" />
+            {d?.showSignature !== false && (
+              <div className="mt-10 grid grid-cols-2 gap-x-8 gap-y-12 text-center text-[14px]">
+                <div className="space-y-6">
+                  <p className="font-semibold">امضاء و نشان مالکین</p>
+                  <div className="h-12 border-t border-dotted border-neutral-500" />
+                </div>
+                <div className="space-y-6">
+                  <p className="font-semibold">امضاء و نشان مستاجر</p>
+                  <div className="h-12 border-t border-dotted border-neutral-500" />
+                </div>
+                <div className="space-y-6">
+                  <p className="font-semibold">امضاء و نشان شاهد</p>
+                  <div className="h-12 border-t border-dotted border-neutral-500" />
+                </div>
+                <div className="space-y-6">
+                  <p className="font-semibold">امضاء و نشان شاهد</p>
+                  <div className="h-12 border-t border-dotted border-neutral-500" />
+                </div>
               </div>
-              <div className="space-y-6">
-                <p className="font-semibold">امضاء و نشان مستاجر</p>
-                <div className="h-12 border-t border-dotted border-neutral-500" />
-              </div>
-              <div className="space-y-6">
-                <p className="font-semibold">امضاء و نشان شاهد</p>
-                <div className="h-12 border-t border-dotted border-neutral-500" />
-              </div>
-              <div className="space-y-6">
-                <p className="font-semibold">امضاء و نشان شاهد</p>
-                <div className="h-12 border-t border-dotted border-neutral-500" />
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

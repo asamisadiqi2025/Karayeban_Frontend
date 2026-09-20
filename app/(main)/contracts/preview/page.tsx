@@ -255,6 +255,11 @@ function ContractPreviewContent() {
         color: d.textColor,
         direction: d.direction,
         padding: `${d.paddingTop}px ${d.paddingRight}px ${d.paddingBottom}px ${d.paddingLeft}px`,
+        backgroundColor: d.backgroundColor || "#ffffff",
+        backgroundImage: d.backgroundImage ? `url(${d.backgroundImage})` : undefined,
+        backgroundSize: d.backgroundImage ? "cover" : undefined,
+        backgroundPosition: d.backgroundImage ? "center" : undefined,
+        backgroundRepeat: d.backgroundImage ? "no-repeat" : undefined,
       }
     : {};
 
@@ -266,6 +271,18 @@ function ContractPreviewContent() {
         marginRight: `${d.marginRight}mm`,
       }
     : {};
+
+  const pageStyleTag = useMemo(() => {
+    if (!d) return null;
+    return (
+      <style>{`
+        @page {
+          size: ${d.pageWidth || "210mm"} ${d.pageHeight || "297mm"};
+          margin: ${d.marginTop}mm ${d.marginRight}mm ${d.marginBottom}mm ${d.marginLeft}mm;
+        }
+      `}</style>
+    );
+  }, [d]);
 
   if (loading) {
     return (
@@ -287,11 +304,12 @@ function ContractPreviewContent() {
 
   return (
     <div>
+      {pageStyleTag}
       <PageHeader
         title="پیش‌نمایش سند قرارداد"
         description="اطلاعات را وارد کنید؛ پیش‌نمایش به‌صورت زنده به‌روز می‌شود"
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => router.back()}>
               <ArrowRight data-icon="inline-start" className="h-4 w-4" />
               بازگشت
@@ -309,9 +327,9 @@ function ContractPreviewContent() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_2fr]">
+      <div className="grid grid-cols-1 gap-6 overflow-visible lg:grid-cols-[1fr_2fr]">
         {/* Form Panel */}
-        <div className="no-print space-y-3">
+        <div className="no-print space-y-3 overflow-visible">
           <Card className="space-y-3 p-3">
             <h3 className="text-xs font-semibold text-foreground">مالک اول</h3>
             <Input placeholder="نام" value={form.owner1Name} onChange={(e) => update("owner1Name", e.target.value)} />
@@ -407,7 +425,7 @@ function ContractPreviewContent() {
             <Input placeholder="نمبر تذکره" value={form.tenantTazkira} onChange={(e) => update("tenantTazkira", e.target.value)} />
           </Card>
 
-          <Card className="space-y-3 p-3">
+          <Card className="space-y-3 p-3 overflow-visible">
             <h3 className="text-xs font-semibold text-foreground">شرایط کرایه</h3>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
@@ -443,30 +461,30 @@ function ContractPreviewContent() {
               <Input placeholder="مدت (ماه)" type="number" dir="ltr" value={form.durationMonths} onChange={(e) => update("durationMonths", e.target.value)} />
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
+              <div className="relative z-50 min-w-0 space-y-1.5">
                 <Label className="text-xs">تاریخ شروع</Label>
                 <DatePicker
                   calendar={persian}
                   locale={afghanLocale}
                   calendarPosition="bottom-right"
                   placeholder="تاریخ شروع"
-                  containerClassName="w-full"
-                  className="w-full"
+                  containerClassName="!w-full"
+                  className="!w-full"
                   value={isoToPersianDate(form.startDate)}
                   onChange={(date) => {
                     if (date?.isValid) update("startDate", persianDateToIso(date));
                   }}
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="relative z-50 min-w-0 space-y-1.5">
                 <Label className="text-xs">تاریخ پایان</Label>
                 <DatePicker
                   calendar={persian}
                   locale={afghanLocale}
                   calendarPosition="bottom-right"
                   placeholder="تاریخ پایان"
-                  containerClassName="w-full"
-                  className="w-full"
+                  containerClassName="!w-full"
+                  className="!w-full"
                   value={isoToPersianDate(form.endDate)}
                   onChange={(date) => {
                     if (date?.isValid) update("endDate", persianDateToIso(date));
@@ -531,9 +549,9 @@ function ContractPreviewContent() {
         </div>
 
         {/* Preview Panel */}
-        <div className="print-area flex justify-center" style={printPageStyle}>
+        <div className="print-area flex justify-center overflow-x-auto" style={printPageStyle}>
           <div
-            className="w-full max-w-[720px] border border-neutral-300 bg-white p-6 text-[15px] leading-7 text-neutral-800 shadow-sm"
+            className="w-full min-w-0 max-w-[720px] border border-neutral-300 bg-white p-4 text-[15px] leading-7 text-neutral-800 shadow-sm sm:p-6"
             style={printAreaStyle}
           >
             {d?.showHeader !== false && (
@@ -612,7 +630,9 @@ function ContractPreviewContent() {
               </>
             )}
 
-            <p className="mt-4 text-center text-xs" dir="rtl">(و کان ذلک فی محضر المسلمین)</p>
+            {d?.showFooter !== false && (
+              <p className="mt-4 text-center text-xs" dir="rtl">(و کان ذلک فی محضر المسلمین)</p>
+            )}
 
             {d?.showSignature !== false && (
               <div className="mt-10 grid grid-cols-2 gap-x-8 gap-y-12 text-center text-[14px]">

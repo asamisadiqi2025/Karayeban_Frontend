@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   ArrowRight,
@@ -206,6 +206,11 @@ function ContractDetailContent() {
         color: d.textColor,
         direction: d.direction,
         padding: `${d.paddingTop}px ${d.paddingRight}px ${d.paddingBottom}px ${d.paddingLeft}px`,
+        backgroundColor: d.backgroundColor || "#ffffff",
+        backgroundImage: d.backgroundImage ? `url(${d.backgroundImage})` : undefined,
+        backgroundSize: d.backgroundImage ? "cover" : undefined,
+        backgroundPosition: d.backgroundImage ? "center" : undefined,
+        backgroundRepeat: d.backgroundImage ? "no-repeat" : undefined,
       }
     : {};
 
@@ -218,8 +223,21 @@ function ContractDetailContent() {
       }
     : {};
 
+  const pageStyleTag = useMemo(() => {
+    if (!d) return null;
+    return (
+      <style>{`
+        @page {
+          size: ${d.pageWidth || "210mm"} ${d.pageHeight || "297mm"};
+          margin: ${d.marginTop}mm ${d.marginRight}mm ${d.marginBottom}mm ${d.marginLeft}mm;
+        }
+      `}</style>
+    );
+  }, [d]);
+
   return (
     <div>
+      {pageStyleTag}
       <PageHeader
         title={`قرارداد ${getShopName(contract.shopId)}`}
         description="جزییات قرارداد اجاره"
@@ -407,9 +425,11 @@ function ContractDetailContent() {
             </>
           )}
 
-          <p className="mt-4 text-center text-xs" dir="rtl">
-            (و کان ذلک فی محضر المسلمین)
-          </p>
+          {d?.showFooter !== false && (
+            <p className="mt-4 text-center text-xs" dir="rtl">
+              (و کان ذلک فی محضر المسلمین)
+            </p>
+          )}
 
           {d?.showSignature !== false && (
             <div className="mt-10 grid grid-cols-2 gap-x-8 gap-y-12 text-center text-[14px]">
