@@ -111,12 +111,9 @@ export const navSections: NavSection[] = [
         submenu: [
           {
             label: "اجاره دکان‌هاو واحدها",
-            href: "/shops",
+            href: "/rent",
           },
-          {
-            label: "اجاره واحدها",
-            href: "/rent/units",
-          },
+    
         ],
       },
 
@@ -127,8 +124,12 @@ export const navSections: NavSection[] = [
         icon: FileText,
         submenu: [
           {
-            label: "قراردادها",
+            label: "ساخت قرارداد جدید",
             href: "/contracts",
+          },
+            {
+            label: "تمدید قرارداد",
+            href: "/renew-contracts",
           },
          
         ],
