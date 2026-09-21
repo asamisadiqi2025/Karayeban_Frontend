@@ -143,7 +143,7 @@ export default function ContractPreviewPage() {
 function ContractPreviewContent() {
   const router = useRouter();
   const toast = useToast();
-  const [design] = useState<ContractDesignSettings>(() => loadContractDesignSettings());
+  const [design, setDesign] = useState<ContractDesignSettings | null>(null);
   const [form, setForm] = useState<PreviewForm>(initialForm);
 
   const [shops, setShops] = useState<Shop[]>([]);
@@ -172,6 +172,10 @@ function ContractPreviewContent() {
       }
     ).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    setDesign(loadContractDesignSettings());
   }, []);
 
   function update<K extends keyof PreviewForm>(key: K, value: string) {
