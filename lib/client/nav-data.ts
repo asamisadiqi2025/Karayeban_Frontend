@@ -205,6 +205,10 @@ export const navSections: NavSection[] = [
             label: "خلاصه اجناس",
             href: "/inventory/items/summary",
           },
+          {
+            label: "انتقال بین گدام‌ها",
+            href: "/inventory/transactions/transfer",
+          },
         ],
       },
       // مدیریت مصارف

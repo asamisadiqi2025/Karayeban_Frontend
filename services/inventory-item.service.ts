@@ -238,6 +238,40 @@ export async function deleteInventoryItem(
   return data ?? {};
 }
 
+export interface TransferInventoryItemPayload {
+  itemId: string;
+  fromWarehouseId: string;
+  toWarehouseId: string;
+  quantity: number;
+  notes?: string;
+}
+
+export interface InventoryTransferResult {
+  id?: string;
+  itemId?: string;
+  fromWarehouseId?: string;
+  toWarehouseId?: string;
+  quantity?: string | number;
+  notes?: string;
+  transferGroupId?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * انتقال یک جنس بین دو گدام
+ * POST /inventory/transactions/transfer
+ * body: { itemId, fromWarehouseId, toWarehouseId, quantity, notes }
+ */
+export async function transferInventoryItem(
+  payload: TransferInventoryItemPayload,
+): Promise<InventoryTransferResult> {
+  const { data } = await apiClient.post<InventoryTransferResult>(
+    "/inventory/transactions/transfer",
+    payload,
+  );
+  return data ?? {};
+}
+
 export interface InventorySummaryWarehouseCurrency {
   warehouseId: string;
   currencyId: string;
