@@ -23,6 +23,7 @@ import {
   type PaperSizePreset,
   type ContractDesignSettings,
 } from "@/lib/shared/contract-design";
+import { saveFile, deleteFile, getFileUrl } from "@/lib/client/file-storage";
 
 export type { ContractDesignSettings };
 
@@ -72,6 +73,37 @@ export default function ContractDesignPage() {
     update("backgroundImage", "");
     if (bgFileInputRef.current) bgFileInputRef.current.value = "";
   }
+
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleLogoUpload = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (!file.type.startsWith("image/")) return;
+      saveFile("contract_logo", file).then((url) => {
+        update("logoUrl", url);
+      });
+    },
+    [],
+  );
+
+  function handleRemoveLogo() {
+    update("logoUrl", "");
+    if (logoFileInputRef.current) logoFileInputRef.current.value = "";
+    deleteFile("contract_logo");
+  }
+
+  useEffect(() => {
+    getFileUrl("contract_logo").then((url) => {
+      if (url) {
+        setSettings((prev) => {
+          if (prev.logoUrl) return prev;
+          return { ...prev, logoUrl: url };
+        });
+      }
+    });
+  }, []);
 
   function handleSave() {
     setSaving(true);
@@ -291,6 +323,37 @@ export default function ContractDesignPage() {
                 value={settings.logoUrl}
                 onChange={(e) => update("logoUrl", e.target.value)}
               />
+            </div>
+            <div className="space-y-2 text-right">
+              <Label>آپلود تصویر لوگو</Label>
+              <div className="flex gap-2">
+                <input
+                  ref={logoFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  className="hidden"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  onClick={() => logoFileInputRef.current?.click()}
+                  className="flex-1"
+                >
+                  انتخاب تصویر
+                </Button>
+                {settings.logoUrl && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    type="button"
+                    onClick={handleRemoveLogo}
+                  >
+                    حذف
+                  </Button>
+                )}
+              </div>
             </div>
             <div className="space-y-2 text-right">
               <Label htmlFor="logoSize">اندازه لوگو</Label>

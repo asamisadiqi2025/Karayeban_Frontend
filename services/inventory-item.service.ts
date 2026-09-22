@@ -77,7 +77,8 @@ interface RawInventoryItem {
   name?: string;
   item_name?: string;
   itemName?: string;
-  unit?: string;
+  unit?: string | { id?: string; name?: string; symbol?: string | null };
+  unitId?: string;
   quantity?: string | number;
   averageCost?: string | number;
   warehouseId?: string;
@@ -111,6 +112,14 @@ interface RawInventoryItem {
   };
 }
 
+function extractUnitName(
+  unit: string | { id?: string; name?: string; symbol?: string | null } | undefined,
+): string {
+  if (unit == null) return "";
+  if (typeof unit === "string") return unit;
+  return unit.name ?? unit.symbol ?? "";
+}
+
 function normalizeInventoryItem(raw: RawInventoryItem): InventoryItem {
   const stock: Record<string, unknown> = (raw.openingStock ?? raw.opening_stock ?? {}) as Record<string, unknown>;
   const transactions: InventoryTransaction[] = Array.isArray(raw.transactions)
@@ -135,7 +144,7 @@ function normalizeInventoryItem(raw: RawInventoryItem): InventoryItem {
   return {
     id: raw.id ?? raw._id ?? "",
     name: raw.name ?? raw.item_name ?? raw.itemName ?? "",
-    unit: raw.unit ?? "",
+    unit: extractUnitName(raw.unit),
     quantity: String(raw.quantity ?? "0"),
     averageCost: String(raw.averageCost ?? "0"),
     warehouseId: raw.warehouseId ?? raw.warehouse_id ?? raw.warehouseID ?? "",
@@ -225,6 +234,40 @@ export async function deleteInventoryItem(
 ): Promise<{ message?: string }> {
   const { data } = await apiClient.delete<{ message?: string }>(
     `/inventory/items/${id}`,
+  );
+  return data ?? {};
+}
+
+export interface TransferInventoryItemPayload {
+  itemId: string;
+  fromWarehouseId: string;
+  toWarehouseId: string;
+  quantity: number;
+  notes?: string;
+}
+
+export interface InventoryTransferResult {
+  id?: string;
+  itemId?: string;
+  fromWarehouseId?: string;
+  toWarehouseId?: string;
+  quantity?: string | number;
+  notes?: string;
+  transferGroupId?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * انتقال یک جنس بین دو گدام
+ * POST /inventory/transactions/transfer
+ * body: { itemId, fromWarehouseId, toWarehouseId, quantity, notes }
+ */
+export async function transferInventoryItem(
+  payload: TransferInventoryItemPayload,
+): Promise<InventoryTransferResult> {
+  const { data } = await apiClient.post<InventoryTransferResult>(
+    "/inventory/transactions/transfer",
+    payload,
   );
   return data ?? {};
 }
