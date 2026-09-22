@@ -110,7 +110,7 @@ export const navSections: NavSection[] = [
         icon: ReceiptText,
         submenu: [
           {
-            label: "اجاره دکان‌هاو واحدها",
+            label: "اجاره تکی",
             href: "/rent",
           },
     
