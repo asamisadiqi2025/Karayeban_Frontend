@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Search, Pencil, Trash2, Tag, Loader2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Tag, FolderTree, Loader2 } from "lucide-react";
 
 import { PageHeader } from "@/components/server/dashboard/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +37,11 @@ import {
 import { extractApiErrorMessage } from "@/services/client";
 import { ToastProvider, useToast } from "@/components/client/toast";
 
+const emptyForm = {
+  name: "",
+  isActive: true,
+};
+
 export default function ExpenseCategoriesPage() {
   return (
     <ToastProvider>
@@ -53,7 +59,7 @@ function ExpenseCategoriesPageContent() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [name, setName] = useState("");
+  const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -96,16 +102,25 @@ function ExpenseCategoriesPageContent() {
     );
   }, [categories, query]);
 
+  const parentNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of categories) map.set(c.id, c.name);
+    return map;
+  }, [categories]);
+
   function openCreateDialog() {
     setEditingId(null);
-    setName("");
+    setForm(emptyForm);
     setFormError(null);
     setDialogOpen(true);
   }
 
   function openEditDialog(category: ExpenseCategory) {
     setEditingId(category.id);
-    setName(category.name);
+    setForm({
+      name: category.name,
+      isActive: category.isActive,
+    });
     setFormError(null);
     setDialogOpen(true);
   }
@@ -127,7 +142,7 @@ function ExpenseCategoriesPageContent() {
     e.preventDefault();
     setFormError(null);
 
-    if (!name.trim()) {
+    if (!form.name.trim()) {
       setFormError("نام دسته‌بندی الزامی است");
       return;
     }
@@ -135,13 +150,18 @@ function ExpenseCategoriesPageContent() {
     setSaving(true);
     try {
       if (editingId) {
-        const updated = await updateExpenseCategory(editingId, { name: name.trim() });
+        const updated = await updateExpenseCategory(editingId, {
+          name: form.name.trim(),
+          isActive: form.isActive,
+        });
         setCategories((prev) =>
           prev.map((c) => (c.id === editingId ? updated : c)),
         );
         toast.success("دسته‌بندی با موفقیت بروزرسانی شد");
       } else {
-        const created = await createExpenseCategory({ name: name.trim() });
+        const created = await createExpenseCategory({
+          name: form.name.trim(),
+        });
         setCategories((prev) => [created, ...prev]);
         toast.success("دسته‌بندی جدید با موفقیت ثبت شد");
       }
@@ -157,7 +177,7 @@ function ExpenseCategoriesPageContent() {
     <div>
       <PageHeader
         title="دسته‌بندی مصارف"
-        description="مدیریت دسته‌بندی مصارف"
+        description="مدیریت دسته‌بندی‌های سلسله‌مراتبی مصارف"
         action={
           <Button onClick={openCreateDialog}>
             <Plus data-icon="inline-start" />
@@ -196,13 +216,15 @@ function ExpenseCategoriesPageContent() {
           <TableHeader>
             <TableRow>
               <TableHead className="text-right">نام دسته‌بندی</TableHead>
+              <TableHead className="text-right">دسته‌بندی والد</TableHead>
+              <TableHead className="text-right">وضعیت</TableHead>
               <TableHead className="text-left">عملیات</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={2} className="py-10">
+                <TableCell colSpan={4} className="py-10">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <Loader2 className="h-6 w-6 animate-spin" />
                     <span className="text-sm">در حال بارگذاری...</span>
@@ -211,7 +233,7 @@ function ExpenseCategoriesPageContent() {
               </TableRow>
             ) : error ? (
               <TableRow>
-                <TableCell colSpan={2} className="py-10">
+                <TableCell colSpan={4} className="py-10">
                   <div className="flex flex-col items-center gap-3 text-center">
                     <p className="text-sm text-muted-foreground">{error}</p>
                     <Button variant="outline" size="sm" onClick={load}>
@@ -223,7 +245,7 @@ function ExpenseCategoriesPageContent() {
             ) : filtered.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={2}
+                  colSpan={4}
                   className="py-10 text-center text-muted-foreground"
                 >
                   دسته‌بندی‌ای یافت نشد
@@ -245,6 +267,23 @@ function ExpenseCategoriesPageContent() {
                         {category.name}
                       </span>
                     </div>
+                  </TableCell>
+                  <TableCell className="text-right text-muted-foreground">
+                    {category.parentId ? (
+                      <span className="flex items-center gap-1.5">
+                        <FolderTree className="h-3.5 w-3.5 text-muted-foreground" />
+                        {parentNameById.get(category.parentId) ?? "—"}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground/60">بدون والد</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {category.isActive ? (
+                      <Badge variant="success">فعال</Badge>
+                    ) : (
+                      <Badge variant="outline">غیرفعال</Badge>
+                    )}
                   </TableCell>
                   <TableCell className="text-left">
                     <div className="flex items-center justify-end gap-1">
@@ -287,23 +326,48 @@ function ExpenseCategoriesPageContent() {
         <DialogContent className="sm:max-w-[500px]">
           <form onSubmit={handleSubmit} className="space-y-6">
             <DialogHeader className="text-right">
-              <DialogTitle>
+              <DialogTitle className="text-right">
                 {editingId ? "ویرایش دسته‌بندی" : "افزودن دسته‌بندی جدید"}
               </DialogTitle>
               <DialogDescription>
-                نام دسته‌بندی را وارد کنید
+                اطلاعات دسته‌بندی را وارد کنید
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-2 text-right">
-              <Label htmlFor="category-name">نام دسته‌بندی</Label>
-              <Input
-                id="category-name"
-                placeholder="مثلاً: تعمیرات"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
+            <div className="space-y-5">
+              <div className="space-y-2 text-right">
+                <Label htmlFor="category-name">نام دسته‌بندی</Label>
+                <Input
+                  id="category-name"
+                  placeholder="مثلاً: مارکر"
+                  value={form.name}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, name: e.target.value }))
+                  }
+                  required
+                />
+              </div>
+
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3.5">
+                <input
+                  id="category-active"
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-primary"
+                  checked={form.isActive}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, isActive: e.target.checked }))
+                  }
+                />
+                <div className="space-y-0.5">
+                  <span className="block text-sm font-medium text-foreground">
+                    وضعیت فعال
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    در صورت غیرفعال بودن، دسته‌بندی در انتخاب‌ها نمایش داده
+                    نمی‌شود
+                  </span>
+                </div>
+              </label>
             </div>
 
             {formError && (
