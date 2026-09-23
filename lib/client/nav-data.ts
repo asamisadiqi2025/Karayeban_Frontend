@@ -272,6 +272,10 @@ export const navSections: NavSection[] = [
             label: "بانک‌ها",
             href: "/settings/banks",
           },
+          {
+            label: "اضافه کردن واحدات",
+            href: "/settings/units",
+          },
         ],
       },
     ],
