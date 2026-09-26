@@ -198,10 +198,6 @@ export const navSections: NavSection[] = [
             href: "/warehouse/categories",
           },
           {
-            label: "افزودن زیردسته",
-            href: "/expenses/categories/subcategory",
-          },
-          {
             label: "اضافه کردن به گدام",
             href: "/warehouse/inventory-items",
           },
@@ -228,6 +224,10 @@ export const navSections: NavSection[] = [
           {
             label: "دسته‌بندی مصارف",
             href: "/expenses/categories",
+          },
+          {
+            label: "افزودن زیردسته",
+            href: "/expenses/categories/subcategory",
           },
         ],
       },
