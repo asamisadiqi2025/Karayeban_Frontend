@@ -2,7 +2,7 @@ import { apiClient } from "@/services/client";
 
 export interface CreateInventoryItemPayload {
   name: string;
-  unit: string;
+  unitId: string;
   warehouseId: string;
   currencyId: string;
   categoryId: string;
@@ -16,7 +16,7 @@ export interface CreateInventoryItemPayload {
 
 export interface UpdateInventoryItemPayload {
   name?: string;
-  unit?: string;
+  unitId?: string;
   warehouseId?: string;
   currencyId?: string;
   categoryId?: string;
@@ -50,6 +50,7 @@ export interface InventoryItem {
   id: string;
   name: string;
   unit: string;
+  unitId: string;
   quantity: string;
   averageCost: string;
   warehouseId: string;
@@ -77,7 +78,8 @@ interface RawInventoryItem {
   name?: string;
   item_name?: string;
   itemName?: string;
-  unit?: string;
+  unit?: string | { id?: string; name?: string; symbol?: string | null };
+  unitId?: string;
   quantity?: string | number;
   averageCost?: string | number;
   warehouseId?: string;
@@ -111,6 +113,23 @@ interface RawInventoryItem {
   };
 }
 
+function extractUnitId(
+  unit: string | { id?: string; name?: string; symbol?: string | null } | undefined,
+  unitId?: string,
+): string {
+  if (unitId && typeof unitId === "string") return unitId;
+  if (typeof unit === "string") return unit;
+  return unit?.id ?? "";
+}
+
+function extractUnitName(
+  unit: string | { id?: string; name?: string; symbol?: string | null } | undefined,
+): string {
+  if (unit == null) return "";
+  if (typeof unit === "string") return unit;
+  return unit.name ?? unit.symbol ?? "";
+}
+
 function normalizeInventoryItem(raw: RawInventoryItem): InventoryItem {
   const stock: Record<string, unknown> = (raw.openingStock ?? raw.opening_stock ?? {}) as Record<string, unknown>;
   const transactions: InventoryTransaction[] = Array.isArray(raw.transactions)
@@ -135,7 +154,8 @@ function normalizeInventoryItem(raw: RawInventoryItem): InventoryItem {
   return {
     id: raw.id ?? raw._id ?? "",
     name: raw.name ?? raw.item_name ?? raw.itemName ?? "",
-    unit: raw.unit ?? "",
+    unit: extractUnitName(raw.unit),
+    unitId: extractUnitId(raw.unit, raw.unitId),
     quantity: String(raw.quantity ?? "0"),
     averageCost: String(raw.averageCost ?? "0"),
     warehouseId: raw.warehouseId ?? raw.warehouse_id ?? raw.warehouseID ?? "",
@@ -186,7 +206,7 @@ export async function createInventoryItem(
 ): Promise<InventoryItem> {
   const { data } = await apiClient.post("/inventory/items", {
     name: payload.name,
-    unit: payload.unit,
+    unitId: payload.unitId,
     warehouseId: payload.warehouseId,
     currencyId: payload.currencyId,
     categoryId: payload.categoryId,
@@ -206,7 +226,7 @@ export async function updateInventoryItem(
 ): Promise<InventoryItem> {
   const body: Record<string, unknown> = {};
   if (payload.name !== undefined) body.name = payload.name;
-  if (payload.unit !== undefined) body.unit = payload.unit;
+  if (payload.unitId !== undefined) body.unitId = payload.unitId;
   if (payload.warehouseId !== undefined) body.warehouseId = payload.warehouseId;
   if (payload.currencyId !== undefined) body.currencyId = payload.currencyId;
   if (payload.categoryId !== undefined) body.categoryId = payload.categoryId;
@@ -225,6 +245,40 @@ export async function deleteInventoryItem(
 ): Promise<{ message?: string }> {
   const { data } = await apiClient.delete<{ message?: string }>(
     `/inventory/items/${id}`,
+  );
+  return data ?? {};
+}
+
+export interface TransferInventoryItemPayload {
+  itemId: string;
+  fromWarehouseId: string;
+  toWarehouseId: string;
+  quantity: number;
+  notes?: string;
+}
+
+export interface InventoryTransferResult {
+  id?: string;
+  itemId?: string;
+  fromWarehouseId?: string;
+  toWarehouseId?: string;
+  quantity?: string | number;
+  notes?: string;
+  transferGroupId?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * انتقال یک جنس بین دو گدام
+ * POST /inventory/transactions/transfer
+ * body: { itemId, fromWarehouseId, toWarehouseId, quantity, notes }
+ */
+export async function transferInventoryItem(
+  payload: TransferInventoryItemPayload,
+): Promise<InventoryTransferResult> {
+  const { data } = await apiClient.post<InventoryTransferResult>(
+    "/inventory/transactions/transfer",
+    payload,
   );
   return data ?? {};
 }

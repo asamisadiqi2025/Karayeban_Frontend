@@ -231,13 +231,13 @@ function AccountsPageContent() {
     setSaving(true);
     try {
       if (editingId) {
-        const updated = await updateBankAccount(editingId, {
+        await updateBankAccount(editingId, {
           name: payload.name,
           ...(payload.type === "BANK"
             ? { bankName: payload.bankName, accountNumber: payload.accountNumber }
             : { bankName: null, accountNumber: null }),
         });
-        setAccounts((prev) => prev.map((a) => (a.id === editingId ? updated : a)));
+        await load();
         toast.success("حساب با موفقیت بروزرسانی شد");
       } else {
         const created = await createBankAccount(payload);
@@ -462,6 +462,7 @@ function AccountsPageContent() {
                   <Select
                     value={form.type}
                     onValueChange={(v) => setForm((f) => ({ ...f, type: v as BankAccountType }))}
+                    disabled={!!editingId}
                   >
                     <SelectTrigger id="account-type" className="w-full">
                       <SelectValue />
@@ -471,6 +472,9 @@ function AccountsPageContent() {
                       <SelectItem value="BANK">حساب بانکی</SelectItem>
                     </SelectContent>
                   </Select>
+                  {editingId && (
+                    <p className="text-xs text-muted-foreground">نوع حساب قابل تغییر نیست</p>
+                  )}
                 </div>
 
                 {/* ارز حساب */}
@@ -479,6 +483,7 @@ function AccountsPageContent() {
                   <Select
                     value={form.currencyId}
                     onValueChange={(v) => setForm((f) => ({ ...f, currencyId: v ?? "" }))}
+                    disabled={!!editingId}
                   >
                     <SelectTrigger id="account-currency" className="w-full">
                       <SelectValue
@@ -508,6 +513,9 @@ function AccountsPageContent() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {editingId && (
+                    <p className="text-xs text-muted-foreground">ارز حساب قابل تغییر نیست</p>
+                  )}
                 </div>
               </div>
 
@@ -538,33 +546,34 @@ function AccountsPageContent() {
               )}
             </div>
 
-            {/* افتتاحیه حساب */}
-            <div className="space-y-3 border-t pt-5">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="opening-amount" className="text-sm font-semibold text-foreground">
-                  مبلغ افتتاحیه
-                </Label>
-                {selectedCurrency && (
-                  <Badge variant="outline" dir="ltr">
-                    {selectedCurrency.code}
-                  </Badge>
-                )}
+            {/* افتتاحیه حساب — فقط در حالت ایجاد */}
+            {!editingId && (
+              <div className="space-y-3 border-t pt-5">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="opening-amount" className="text-sm font-semibold text-foreground">
+                    مبلغ افتتاحیه
+                  </Label>
+                  {selectedCurrency && (
+                    <Badge variant="outline" dir="ltr">
+                      {selectedCurrency.code}
+                    </Badge>
+                  )}
+                </div>
+                <Input
+                  id="opening-amount"
+                  type="number"
+                  step="any"
+                  min="0"
+                  dir="ltr"
+                  placeholder="0"
+                  value={form.openingAmount}
+                  onChange={(e) => setForm((f) => ({ ...f, openingAmount: e.target.value }))}
+                />
+                <p className="text-xs text-muted-foreground">
+                  موجودی اولیه‌ی حساب هنگام افتتاح به این ارز
+                </p>
               </div>
-              <Input
-                id="opening-amount"
-                type="number"
-                step="any"
-                min="0"
-                dir="ltr"
-                placeholder="0"
-                value={form.openingAmount}
-                onChange={(e) => setForm((f) => ({ ...f, openingAmount: e.target.value }))}
-                // required
-              />
-              <p className="text-xs text-muted-foreground">
-                موجودی اولیه‌ی حساب هنگام افتتاح به این ارز
-              </p>
-            </div>
+            )}
 
             {formError && (
               <p className="whitespace-pre-line text-sm text-destructive">{formError}</p>

@@ -110,7 +110,7 @@ export const navSections: NavSection[] = [
         icon: ReceiptText,
         submenu: [
           {
-            label: "اجاره دکان‌هاو واحدها",
+            label: "اجاره تکی",
             href: "/rent",
           },
     
@@ -205,6 +205,10 @@ export const navSections: NavSection[] = [
             label: "خلاصه اجناس",
             href: "/inventory/items/summary",
           },
+          {
+            label: "انتقال بین گدام‌ها",
+            href: "/inventory/transactions/transfer",
+          },
         ],
       },
       // مدیریت مصارف
@@ -220,6 +224,10 @@ export const navSections: NavSection[] = [
           {
             label: "دسته‌بندی مصارف",
             href: "/expenses/categories",
+          },
+          {
+            label: "افزودن زیردسته",
+            href: "/expenses/categories/subcategory",
           },
         ],
       },
@@ -267,6 +275,10 @@ export const navSections: NavSection[] = [
           {
             label: "بانک‌ها",
             href: "/settings/banks",
+          },
+          {
+            label: "اضافه کردن واحدات",
+            href: "/settings/units",
           },
         ],
       },

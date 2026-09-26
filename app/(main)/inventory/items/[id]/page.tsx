@@ -2,7 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { ArrowRight, Package, Loader2, Calendar, Warehouse, Tag, Coins } from "lucide-react";
+import {
+  ArrowRight,
+  Package,
+  Loader2,
+  Calendar,
+  Warehouse,
+  Tag,
+  Coins,
+  ShieldCheck,
+  Server,
+} from "lucide-react";
 
 import { PageHeader } from "@/components/server/dashboard/page-header";
 import { Card } from "@/components/ui/card";
@@ -21,7 +31,6 @@ import {
   type InventoryItem,
   type InventoryTransaction,
 } from "@/services/inventory-item.service";
-import { fetchInventoryUnits, type InventoryUnit } from "@/services/inventory-unit.service";
 import { extractApiErrorMessage } from "@/services/client";
 import { ToastProvider } from "@/components/client/toast";
 
@@ -36,21 +45,8 @@ export default function InventoryItemDetailPage() {
 function InventoryItemDetailContent() {
   const { id } = useParams<{ id: string }>();
   const [item, setItem] = useState<InventoryItem | null>(null);
-  const [units, setUnits] = useState<InventoryUnit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchInventoryUnits()
-      .then(setUnits)
-      .catch(() => {});
-  }, []);
-
-  const unitMap = useMemo(() => {
-    const m = new Map<string, string>();
-    units.forEach((u) => m.set(u.id, u.name));
-    return m;
-  }, [units]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -68,6 +64,10 @@ function InventoryItemDetailContent() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const quantity = useMemo(() => Number(item?.quantity) || 0, [item]);
+  const averageCost = useMemo(() => Number(item?.averageCost) || 0, [item]);
+  const totalValue = quantity * averageCost;
 
   if (loading) {
     return (
@@ -94,11 +94,6 @@ function InventoryItemDetailContent() {
     );
   }
 
-  const quantity = Number(item.quantity) || 0;
-  const averageCost = Number(item.averageCost) || 0;
-  const totalValue = quantity * averageCost;
-  const unitDisplay = unitMap.get(item.unitId) ?? item.unit;
-
   return (
     <div>
       <PageHeader
@@ -122,7 +117,7 @@ function InventoryItemDetailContent() {
         <InfoCard
           icon={<Tag className="h-4 w-4" />}
           label="واحد"
-          value={unitDisplay}
+          value={item.unit}
         />
         <InfoCard
           icon={<Warehouse className="h-4 w-4" />}
@@ -130,7 +125,7 @@ function InventoryItemDetailContent() {
           value={item.warehouse?.name ?? "—"}
         />
         <InfoCard
-          icon={<Coins className="h-4 w-4" />}
+          icon={<Server className="h-4 w-4" />}
           label="دسته‌بندی"
           value={item.category?.name ?? "—"}
         />
@@ -140,7 +135,7 @@ function InventoryItemDetailContent() {
         <InfoCard
           icon={<Package className="h-4 w-4" />}
           label="موجودی"
-          value={`${quantity.toLocaleString("fa-AF")} ${unitDisplay}`}
+          value={`${quantity.toLocaleString("fa-AF")} ${item.unit}`}
         />
         <InfoCard
           icon={<Coins className="h-4 w-4" />}
@@ -156,6 +151,30 @@ function InventoryItemDetailContent() {
           icon={<Calendar className="h-4 w-4" />}
           label="تاریخ ایجاد"
           value={item.createdAt ? new Date(item.createdAt).toLocaleDateString("fa-AF") : "—"}
+        />
+      </div>
+
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <InfoCard
+          icon={<Coins className="h-4 w-4" />}
+          label="واحد پولی"
+          value={item.currency ? `${item.currency.name} (${item.currency.code})` : "—"}
+        />
+        <InfoCard
+          icon={<ShieldCheck className="h-4 w-4" />}
+          label="وضعیت"
+          value={
+            item.isDeleted
+              ? "حذف شده"
+              : item.isActive
+                ? "فعال"
+                : "غیرفعال"
+          }
+        />
+        <InfoCard
+          icon={<Calendar className="h-4 w-4" />}
+          label="آخرین بروزرسانی"
+          value={item.updatedAt ? new Date(item.updatedAt).toLocaleDateString("fa-AF") : "—"}
         />
       </div>
 
@@ -182,6 +201,7 @@ function InventoryItemDetailContent() {
             <TableRow>
               <TableHead className="text-right">نوع</TableHead>
               <TableHead className="text-right">تعداد</TableHead>
+              <TableHead className="text-right">فی</TableHead>
               <TableHead className="text-right">مبلغ کل</TableHead>
               <TableHead className="text-right">تاریخ</TableHead>
               <TableHead className="text-right">ملاحظات</TableHead>
@@ -191,7 +211,7 @@ function InventoryItemDetailContent() {
             {item.transactions.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="py-10 text-center text-muted-foreground"
                 >
                   تراکنشی ثبت نشده است
@@ -199,7 +219,7 @@ function InventoryItemDetailContent() {
               </TableRow>
             ) : (
               item.transactions.map((tx) => (
-                <TransactionRow key={tx.id} tx={tx} unit={unitDisplay} />
+                <TransactionRow key={tx.id} tx={tx} unit={item.unit} />
               ))
             )}
           </TableBody>
@@ -240,6 +260,7 @@ const TRANSACTION_TYPE_LABELS: Record<string, string> = {
 function TransactionRow({ tx, unit }: { tx: InventoryTransaction; unit: string }) {
   const typeLabel = TRANSACTION_TYPE_LABELS[tx.type] ?? tx.type;
   const quantity = Number(tx.quantity) || 0;
+  const unitPrice = tx.unitPrice != null ? Number(tx.unitPrice) || 0 : 0;
   const totalAmount = Number(tx.totalAmount) || 0;
 
   return (
@@ -251,6 +272,9 @@ function TransactionRow({ tx, unit }: { tx: InventoryTransaction; unit: string }
       </TableCell>
       <TableCell className="text-muted-foreground" dir="ltr">
         {quantity.toLocaleString("fa-AF")} {unit}
+      </TableCell>
+      <TableCell className="text-muted-foreground" dir="ltr">
+        {unitPrice ? unitPrice.toLocaleString("fa-AF") : "—"}
       </TableCell>
       <TableCell className="text-muted-foreground" dir="ltr">
         {totalAmount.toLocaleString("fa-AF")}
