@@ -2,7 +2,7 @@ import { apiClient } from "@/services/client";
 
 export interface CreateInventoryItemPayload {
   name: string;
-  unit: string;
+  unitId: string;
   warehouseId: string;
   currencyId: string;
   categoryId: string;
@@ -16,7 +16,7 @@ export interface CreateInventoryItemPayload {
 
 export interface UpdateInventoryItemPayload {
   name?: string;
-  unit?: string;
+  unitId?: string;
   warehouseId?: string;
   currencyId?: string;
   categoryId?: string;
@@ -50,6 +50,7 @@ export interface InventoryItem {
   id: string;
   name: string;
   unit: string;
+  unitId: string;
   quantity: string;
   averageCost: string;
   warehouseId: string;
@@ -112,6 +113,15 @@ interface RawInventoryItem {
   };
 }
 
+function extractUnitId(
+  unit: string | { id?: string; name?: string; symbol?: string | null } | undefined,
+  unitId?: string,
+): string {
+  if (unitId && typeof unitId === "string") return unitId;
+  if (typeof unit === "string") return unit;
+  return unit?.id ?? "";
+}
+
 function extractUnitName(
   unit: string | { id?: string; name?: string; symbol?: string | null } | undefined,
 ): string {
@@ -145,6 +155,7 @@ function normalizeInventoryItem(raw: RawInventoryItem): InventoryItem {
     id: raw.id ?? raw._id ?? "",
     name: raw.name ?? raw.item_name ?? raw.itemName ?? "",
     unit: extractUnitName(raw.unit),
+    unitId: extractUnitId(raw.unit, raw.unitId),
     quantity: String(raw.quantity ?? "0"),
     averageCost: String(raw.averageCost ?? "0"),
     warehouseId: raw.warehouseId ?? raw.warehouse_id ?? raw.warehouseID ?? "",
@@ -195,7 +206,7 @@ export async function createInventoryItem(
 ): Promise<InventoryItem> {
   const { data } = await apiClient.post("/inventory/items", {
     name: payload.name,
-    unit: payload.unit,
+    unitId: payload.unitId,
     warehouseId: payload.warehouseId,
     currencyId: payload.currencyId,
     categoryId: payload.categoryId,
@@ -215,7 +226,7 @@ export async function updateInventoryItem(
 ): Promise<InventoryItem> {
   const body: Record<string, unknown> = {};
   if (payload.name !== undefined) body.name = payload.name;
-  if (payload.unit !== undefined) body.unit = payload.unit;
+  if (payload.unitId !== undefined) body.unitId = payload.unitId;
   if (payload.warehouseId !== undefined) body.warehouseId = payload.warehouseId;
   if (payload.currencyId !== undefined) body.currencyId = payload.currencyId;
   if (payload.categoryId !== undefined) body.categoryId = payload.categoryId;

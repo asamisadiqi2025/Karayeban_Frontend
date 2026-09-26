@@ -189,25 +189,7 @@ function ExpenseSubCategoriesContent() {
             </div>
           </div>
 
-          <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3.5">
-            <input
-              id="subcategory-active"
-              type="checkbox"
-              className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-primary"
-              checked={form.isActive}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, isActive: e.target.checked }))
-              }
-            />
-            <div className="space-y-0.5">
-              <span className="block text-sm font-medium text-foreground">
-                وضعیت فعال
-              </span>
-              <span className="block text-xs text-muted-foreground">
-                در صورت غیرفعال بودن، زیردسته در انتخاب‌ها نمایش داده نمی‌شود
-              </span>
-            </div>
-          </label>
+         
 
           {formError && (
             <p className="whitespace-pre-line text-sm text-destructive">

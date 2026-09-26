@@ -36,6 +36,7 @@ import {
   deleteInventoryItem,
   type InventoryItem,
 } from "@/services/inventory-item.service";
+import { fetchInventoryUnits, type InventoryUnit } from "@/services/inventory-unit.service";
 import { fetchWarehouses, type Warehouse } from "@/services/warehouse.service";
 import { fetchInventoryCategories, type InventoryCategory } from "@/services/inventory-category.service";
 import { fetchAddedCurrencies, type AddedCurrency } from "@/services/currency.service";
@@ -44,7 +45,7 @@ import { ToastProvider, useToast } from "@/components/client/toast";
 
 const emptyForm = {
   name: "",
-  unit: "",
+  unitId: "",
   warehouseId: "",
   currencyId: "",
   categoryId: "",
@@ -73,6 +74,7 @@ function InventoryItemsPageContent() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [categories, setCategories] = useState<InventoryCategory[]>([]);
   const [currencies, setCurrencies] = useState<AddedCurrency[]>([]);
+  const [units, setUnits] = useState<InventoryUnit[]>([]);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -101,7 +103,8 @@ function InventoryItemsPageContent() {
       fetchWarehouses(),
       fetchInventoryCategories(),
       fetchAddedCurrencies(),
-    ]).then(([itemsResult, whResult, catResult, curResult]) => {
+      fetchInventoryUnits(),
+    ]).then(([itemsResult, whResult, catResult, curResult, unitResult]) => {
       if (cancelled) return;
       if (itemsResult.status === "fulfilled") {
         setItems(Array.isArray(itemsResult.value) ? itemsResult.value : []);
@@ -111,6 +114,7 @@ function InventoryItemsPageContent() {
       if (whResult.status === "fulfilled") setWarehouses(whResult.value);
       if (catResult.status === "fulfilled") setCategories(catResult.value);
       if (curResult.status === "fulfilled") setCurrencies(curResult.value);
+      if (unitResult.status === "fulfilled") setUnits(unitResult.value);
     }).finally(() => {
       if (!cancelled) setLoading(false);
     });
@@ -141,6 +145,12 @@ function InventoryItemsPageContent() {
     return m;
   }, [currencies]);
 
+  const unitMap = useMemo(() => {
+    const m = new Map<string, string>();
+    units.forEach((u) => m.set(u.id, u.symbol ? `${u.name} (${u.symbol})` : u.name));
+    return m;
+  }, [units]);
+
   function openCreateDialog() {
     setEditingId(null);
     setForm(emptyForm);
@@ -152,7 +162,7 @@ function InventoryItemsPageContent() {
     setEditingId(item.id);
     setForm({
       name: item.name,
-      unit: item.unit,
+      unitId: item.unitId || item.unit,
       warehouseId: item.warehouseId,
       currencyId: item.currencyId,
       categoryId: item.categoryId,
@@ -183,7 +193,7 @@ function InventoryItemsPageContent() {
     setFormError(null);
 
     if (!form.name.trim()) { setFormError("نام جنس الزامی است"); return; }
-    if (!form.unit.trim()) { setFormError("واحد الزامی است"); return; }
+    if (!form.unitId) { setFormError("واحد را انتخاب کنید"); return; }
     if (!form.warehouseId) { setFormError("گدام را انتخاب کنید"); return; }
     if (!form.currencyId) { setFormError("واحد پولی را انتخاب کنید"); return; }
     if (!form.categoryId) { setFormError("دسته‌بندی را انتخاب کنید"); return; }
@@ -193,7 +203,7 @@ function InventoryItemsPageContent() {
 
     const payload = {
       name: form.name.trim(),
-      unit: form.unit.trim(),
+      unitId: form.unitId,
       warehouseId: form.warehouseId,
       currencyId: form.currencyId,
       categoryId: form.categoryId,
@@ -214,7 +224,7 @@ function InventoryItemsPageContent() {
       if (editingId) {
         const updated = await updateInventoryItem(editingId, {
           name: payload.name,
-          unit: payload.unit,
+          unitId: payload.unitId,
           warehouseId: payload.warehouseId,
         });
         setItems((prev) => prev.map((i) => (i.id === editingId ? { ...i, ...updated } : i)));
@@ -321,7 +331,7 @@ function InventoryItemsPageContent() {
                   className="cursor-pointer hover:bg-muted/40"
                   onClick={() => router.push(`/warehouse/inventory-items/${item.id}`)}
                 >
-                  <TableCell>
+                  <TableCell className="text-right">
                     <div className="flex items-center gap-2">
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">
                         <Package className="h-3.5 w-3.5 text-muted-foreground" />
@@ -331,19 +341,19 @@ function InventoryItemsPageContent() {
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {item.unit}
+                  <TableCell className="text-right text-muted-foreground">
+                    {unitMap.get(item.unitId) ?? item.unit}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="text-right text-muted-foreground">
                     {warehouseMap.get(item.warehouseId) ?? "—"}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="text-right text-muted-foreground">
                     {categoryMap.get(item.categoryId) ?? "—"}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="text-right text-muted-foreground">
                     {currencyMap.get(item.currencyId) ?? "—"}
                   </TableCell>
-                  <TableCell className="text-muted-foreground" dir="ltr">
+                  <TableCell className="text-right text-muted-foreground" dir="ltr">
                     {item.openingStock.quantity.toLocaleString("fa-AF")} × {item.openingStock.unitCost.toLocaleString("fa-AF")}
                   </TableCell>
                   <TableCell className="text-left">
@@ -410,14 +420,19 @@ function InventoryItemsPageContent() {
                   />
                 </div>
                 <div className="space-y-2 text-right">
-                  <Label htmlFor="item-unit">واحد</Label>
-                  <Input
-                    id="item-unit"
-                    placeholder="مثلاً: عدد"
-                    value={form.unit}
-                    onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
-                    required
-                  />
+                  <Label>واحد</Label>
+                  <Select value={form.unitId} onValueChange={(v) => setForm((f) => ({ ...f, unitId: v ?? "" }))}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="انتخاب واحد">
+                        {(value) => units.find((u) => u.id === value) ? (units.find((u) => u.id === value)!.symbol ? `${units.find((u) => u.id === value)!.name} (${units.find((u) => u.id === value)!.symbol})` : units.find((u) => u.id === value)!.name) : "انتخاب واحد"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {units.map((u) => (
+                        <SelectItem key={u.id} value={u.id}>{u.symbol ? `${u.name} (${u.symbol})` : u.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 

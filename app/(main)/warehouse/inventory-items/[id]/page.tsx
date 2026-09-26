@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { ArrowRight, Package, Loader2, Calendar, Warehouse, Tag, Coins } from "lucide-react";
 
@@ -21,6 +21,7 @@ import {
   type InventoryItem,
   type InventoryTransaction,
 } from "@/services/inventory-item.service";
+import { fetchInventoryUnits, type InventoryUnit } from "@/services/inventory-unit.service";
 import { extractApiErrorMessage } from "@/services/client";
 import { ToastProvider } from "@/components/client/toast";
 
@@ -35,8 +36,21 @@ export default function InventoryItemDetailPage() {
 function InventoryItemDetailContent() {
   const { id } = useParams<{ id: string }>();
   const [item, setItem] = useState<InventoryItem | null>(null);
+  const [units, setUnits] = useState<InventoryUnit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchInventoryUnits()
+      .then(setUnits)
+      .catch(() => {});
+  }, []);
+
+  const unitMap = useMemo(() => {
+    const m = new Map<string, string>();
+    units.forEach((u) => m.set(u.id, u.name));
+    return m;
+  }, [units]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -83,6 +97,7 @@ function InventoryItemDetailContent() {
   const quantity = Number(item.quantity) || 0;
   const averageCost = Number(item.averageCost) || 0;
   const totalValue = quantity * averageCost;
+  const unitDisplay = unitMap.get(item.unitId) ?? item.unit;
 
   return (
     <div>
@@ -107,7 +122,7 @@ function InventoryItemDetailContent() {
         <InfoCard
           icon={<Tag className="h-4 w-4" />}
           label="واحد"
-          value={item.unit}
+          value={unitDisplay}
         />
         <InfoCard
           icon={<Warehouse className="h-4 w-4" />}
@@ -125,7 +140,7 @@ function InventoryItemDetailContent() {
         <InfoCard
           icon={<Package className="h-4 w-4" />}
           label="موجودی"
-          value={`${quantity.toLocaleString("fa-AF")} ${item.unit}`}
+          value={`${quantity.toLocaleString("fa-AF")} ${unitDisplay}`}
         />
         <InfoCard
           icon={<Coins className="h-4 w-4" />}
@@ -184,7 +199,7 @@ function InventoryItemDetailContent() {
               </TableRow>
             ) : (
               item.transactions.map((tx) => (
-                <TransactionRow key={tx.id} tx={tx} unit={item.unit} />
+                <TransactionRow key={tx.id} tx={tx} unit={unitDisplay} />
               ))
             )}
           </TableBody>
