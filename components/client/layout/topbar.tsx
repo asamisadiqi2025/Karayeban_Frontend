@@ -248,13 +248,13 @@ export function Topbar({
          <ModeToggle />
 
 
-          {/* <Button
+          <Button
             variant="ghost"
             size="icon"
             className="h-9 w-9"
           >
             <Palette className="h-[18px] w-[18px]" />
-          </Button> */}
+          </Button>
 
 
 

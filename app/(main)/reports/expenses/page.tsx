@@ -1,10 +1,5 @@
+import ReportsView from "@/components/client/reports/reports-view";
 
-import React from 'react'
-
-const page = () => {
-  return (
-    <div>page</div>
-  )
+export default function ExpensesReportPage() {
+  return <ReportsView report="expenses" />;
 }
-
-export default page

@@ -244,6 +244,44 @@ export const navSections: NavSection[] = [
         label: "گزارشات",
         href: "/reports",
         icon: BarChart3,
+        submenu: [
+          {
+            label: "خلاصه مالی",
+            href: "/reports/financials",
+          },
+          {
+            label: "موجودی حساب‌ها",
+            href: "/reports/balances",
+          },
+          {
+            label: "تفکیک مصارف",
+            href: "/reports/expenses",
+          },
+          {
+            label: "عملکرد وصول اجاره",
+            href: "/reports/rent",
+          },
+          {
+            label: "عملکرد وصول برق",
+            href: "/reports/electricity",
+          },
+          {
+            label: "اشغال دکان‌ها",
+            href: "/reports/occupancy",
+          },
+          {
+            label: "اقساط بدهی",
+            href: "/reports/debt-aging",
+          },
+          {
+            label: "خلاصه سهام",
+            href: "/reports/equity",
+          },
+          {
+            label: "گردش گدام",
+            href: "/reports/inventory-movement",
+          },
+        ],
       },
 
       // اعلان‌ها
