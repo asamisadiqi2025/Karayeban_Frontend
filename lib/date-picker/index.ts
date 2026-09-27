@@ -41,8 +41,25 @@ export function isoToDisplayLong(iso: string): string {
   return toPersianDigits(`${p.day} ${p.month.name} ${p.year}`);
 }
 
-export function todayIso(): string {
-  const now = new DateObject({ calendar: gregorian, date: new Date() });
+/**
+ * تاریخ و ساعت به وقت محلی، با ارقام افغانی.
+ *
+ * The instant is converted to local wall-clock FIRST, then rendered, so the
+ * date part and the time part always agree. Passing the raw UTC string to
+ * isoToDisplayLong would read UTC components while the time came from local
+ * time, which can show a date and a clock hour that disagree.
+ */
+export function isoToDisplayDateTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso || "—";
+  const localIso =
+    `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` +
+    `T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+  const clock = toPersianDigits(`${pad2(d.getHours())}:${pad2(d.getMinutes())}`);
+  return `${isoToDisplayLong(localIso)} — ساعت ${clock}`;
+}
+
+export function todayIso(): string {  const now = new DateObject({ calendar: gregorian, date: new Date() });
   return `${now.year}-${pad2(now.month.number)}-${pad2(now.day)}`;
 }
 

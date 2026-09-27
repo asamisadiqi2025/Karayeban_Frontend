@@ -318,6 +318,10 @@ export const navSections: NavSection[] = [
             label: "اضافه کردن واحدات",
             href: "/settings/units",
           },
+          {
+            label: "لاگ های سیستم",
+            href: "/settings/logs",
+          },
         ],
       },
     ],

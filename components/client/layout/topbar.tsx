@@ -9,6 +9,7 @@ import {
   Bell,
   Menu,
   X,
+  DollarSign,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -219,6 +220,15 @@ export function Topbar({
         "
       >
 
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9"
+          >
+            {/* <Palette className="h-[18px] w-[18px]" /> */}
+            <DollarSign  className="h-4 w-4" />
+          </Button>
+
 
         {/* <Button
           size="sm"
@@ -248,13 +258,14 @@ export function Topbar({
          <ModeToggle />
 
 
-          <Button
+          {/* <Button
             variant="ghost"
             size="icon"
             className="h-9 w-9"
           >
             <Palette className="h-[18px] w-[18px]" />
-          </Button>
+       
+          </Button> */}
 
 
 
