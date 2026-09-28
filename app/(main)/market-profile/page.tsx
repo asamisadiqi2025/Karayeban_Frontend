@@ -94,6 +94,15 @@ export default function MarketProfilePage() {
   const [marketId, setMarketId] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
 
+  /**
+   * ارز پایه از API با شناسه (یا کد) می‌آید ولی <select> با کد کار می‌کند،
+   * پس باید بعد از رسیدن لیست ارزها به کد تبدیل شود.
+   */
+  const [marketBaseCurrency, setMarketBaseCurrency] = useState<{
+    id: string | null;
+    code: string | null;
+  }>({ id: null, code: null });
+
   function validate(): boolean {
     const errors: Record<string, string> = {};
 
@@ -160,6 +169,10 @@ export default function MarketProfilePage() {
       .then((m) => {
         if (cancelled) return;
         setMarketId(m.id);
+        setMarketBaseCurrency({
+          id: m.baseCurrencyId ?? null,
+          code: m.baseCurrencyCode ?? null,
+        });
         setForm((prev) => ({
           ...prev,
           nameFa: m.name ?? "",
@@ -184,6 +197,14 @@ export default function MarketProfilePage() {
       .finally(() => { if (!cancelled) setCurrenciesLoading(false); });
     return () => { cancelled = true; };
   }, []);
+
+  // ارز پایه مارکت را به کد تبدیل کن تا در <select> بنشیند
+  const resolvedBaseCurrency =
+    marketBaseCurrency.code ??
+    addedCurrencies.find((c) => c.id === marketBaseCurrency.id)?.code ??
+    "";
+  // تا وقتی کاربر خودش چیزی انتخاب نکرده، مقدار ذخیره‌شده مارکت را نشان بده
+  const baseCurrencyValue = form.baseCurrency || resolvedBaseCurrency;
 
   function handleChange(field: keyof MarketProfileForm) {
     return (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -242,7 +263,7 @@ export default function MarketProfilePage() {
       if (marketId) {
         await updateMarketProfile(marketId, {
           ...common,
-          baseCurrency: form.baseCurrency,
+          baseCurrency: baseCurrencyValue,
           details: form.details,
         });
         setSaved(true);
@@ -250,7 +271,7 @@ export default function MarketProfilePage() {
         const result = await createMarket({
           ...common,
           subdomain: form.subdomain,
-          baseCurrency: form.baseCurrency,
+          baseCurrency: baseCurrencyValue,
         });
         setMarketId(result.id);
         setSaved(true);
@@ -536,7 +557,7 @@ export default function MarketProfilePage() {
                     <Wallet className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <select
                       className={`w-full rounded-md border border-input bg-background px-3 py-2 pr-9 text-sm ${fieldErrors.baseCurrency ? "border-destructive" : ""}`}
-                      value={form.baseCurrency}
+                      value={baseCurrencyValue}
                       onChange={(e) => {
                         setForm((prev) => ({ ...prev, baseCurrency: e.target.value }));
                         setSaved(false);
@@ -566,6 +587,15 @@ export default function MarketProfilePage() {
                     هیچ واحد پولی اضافه نشده — روی + کلیک کنید
                   </p>
                 )}
+                {!currenciesLoading &&
+                  addedCurrencies.length > 0 &&
+                  marketBaseCurrency.id &&
+                  !marketBaseCurrency.code &&
+                  !baseCurrencyValue && (
+                    <p className="text-xs text-amber-600">
+                      ارز پایه ذخیره‌شده ({marketBaseCurrency.id}) در لیست ارزها نیست
+                    </p>
+                  )}
               </div>
             </div>
 

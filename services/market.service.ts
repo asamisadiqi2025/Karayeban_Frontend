@@ -30,9 +30,36 @@ export interface Market {
   email: string | null;
   details: string | null;
   baseCurrencyId: string | null;
+  /** اگر بک‌-end کد ارز را همراه رابطه برگرداند، اینجا پر می‌شود */
+  baseCurrencyCode?: string | null;
   isSetupComplete: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+interface RawMarket {
+  baseCurrencyId?: string | null;
+  base_currency_id?: string | null;
+  baseCurrency?: string | { id?: string; code?: string } | null;
+}
+
+/**
+ * بک‌اند گاهی به‌جای baseCurrencyId خودِ رابطه را برمی‌گرداند و گاهی کد را.
+ * هر سه حالت را یکسان می‌کنیم تا فرم بتواند ارز پایه را نمایش دهد.
+ */
+function normalizeMarket(raw: Market): Market {
+  const source = raw as Market & RawMarket;
+  const baseCurrency = source.baseCurrency;
+  const nested =
+    baseCurrency && typeof baseCurrency === "object" ? baseCurrency : null;
+
+  return {
+    ...raw,
+    baseCurrencyId:
+      source.baseCurrencyId ?? source.base_currency_id ?? nested?.id ?? null,
+    baseCurrencyCode:
+      (typeof baseCurrency === "string" ? baseCurrency : nested?.code) ?? null,
+  };
 }
 
 /**
@@ -41,7 +68,7 @@ export interface Market {
  */
 export async function createMarket(payload: CreateMarketPayload): Promise<Market> {
   const { data } = await apiClient.post<Market>("/markets", payload);
-  return data;
+  return normalizeMarket(data);
 }
 
 /**
@@ -53,7 +80,7 @@ export async function updateMarketProfile(
   payload: UpdateMarketProfilePayload
 ): Promise<Market> {
   const { data } = await apiClient.patch<Market>(`/markets/${id}/profile`, payload);
-  return data;
+  return normalizeMarket(data);
 }
 
 /**
@@ -65,7 +92,7 @@ export async function fetchMyMarket(): Promise<Market> {
   if (Array.isArray(data)) {
     const market = data[0];
     if (!market) throw new Error("مارکتی برای این کاربر یافت نشد");
-    return market;
+    return normalizeMarket(market);
   }
-  return data;
+  return normalizeMarket(data);
 }

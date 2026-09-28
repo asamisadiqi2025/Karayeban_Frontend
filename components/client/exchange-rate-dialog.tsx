@@ -17,7 +17,7 @@ import {
 
 import { useAuth } from "@/contexts/auth-context";
 import { fetchMyMarket, type Market } from "@/services/market.service";
-import { fetchAddedCurrencies, type AddedCurrency } from "@/services/currency.service";
+import { fetchAddedCurrencies } from "@/services/currency.service";
 import {
   fetchExchangeRates,
   setExchangeRate,
@@ -27,26 +27,22 @@ import { extractApiErrorMessage } from "@/services/client";
 import { cn } from "@/lib/shared/utils";
 import { ToastProvider, useToast } from "@/components/client/toast";
 
-/** ورودی «AFN 0.012» یا «afn=0.012» را به کد ارز و نرخ تبدیل می‌کند */
-function parseEntry(raw: string): { code: string; rate: number } | null {
-  const parts = raw.trim().split(/[\s,=]+/).filter(Boolean);
-  if (parts.length !== 2) return null;
-  const code = parts[0].trim().toUpperCase();
-  const rate = Number.parseFloat(parts[1]);
-  if (!code || !Number.isFinite(rate)) return null;
-  return { code, rate };
+/** effectiveDate از سرور به وقت UTC نیمه‌شب است؛ با timeZone: "UTC" از جابه‌جایی یک‌روزه جلوگیری می‌کنیم */
+function formatEffectiveDate(value: string | null): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("fa-AF", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(date);
 }
-
-/** فقط کد ارز را از ورودی درمی‌آورد تا بتوان راهنمای زنده نمایش داد */
-function readCode(raw: string): string {
-  return raw.trim().split(/[\s,=]+/)[0]?.trim().toUpperCase() ?? "";
-}
-
-const ENTRY_PLACEHOLDER = "AFN 0.012";
 
 /**
- * دکمه نرخ ارز در نوار بالا + مودال ثبت نرخ.
- * کاربر کد ارز و نرخ را در یک ورودی وسط مودال می‌نویسد، مثلاً: AFN 0.012
+ * دکمه نرخ ارز در نوار بالا + مودال ویرایش نرخ.
+ * کاربر از لیست یک ارز را انتخاب می‌کند و نرخ آن را در ورودی وسط مودال ویرایش می‌کند.
  */
 export function ExchangeRateButton() {
   return (
@@ -62,9 +58,9 @@ function ExchangeRateButtonContent() {
 
   const [open, setOpen] = useState(false);
   const [rates, setRates] = useState<ExchangeRate[]>([]);
-  const [currencies, setCurrencies] = useState<AddedCurrency[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [rateInput, setRateInput] = useState("");
   const [baseCurrencyCode, setBaseCurrencyCode] = useState<string | null>(null);
-  const [entry, setEntry] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -85,6 +81,12 @@ function ExchangeRateButtonContent() {
     }
   }
 
+  function selectRate(rate: ExchangeRate) {
+    setSelectedId(rate.currencyId);
+    setRateInput(String(rate.rateToBase));
+    setFormError(null);
+  }
+
   async function load() {
     setLoading(true);
     setLoadError(null);
@@ -98,15 +100,20 @@ function ExchangeRateButtonContent() {
 
       if (ratesResult.status === "rejected") {
         setRates([]);
-        setCurrencies([]);
+        setSelectedId(null);
+        setRateInput("");
         setLoadError(
           extractApiErrorMessage(ratesResult.reason, "خطا در دریافت نرخ ارزها")
         );
         return;
       }
 
-      setRates(ratesResult.value);
-      setCurrencies(currenciesResult.status === "fulfilled" ? currenciesResult.value : []);
+      const next = ratesResult.value;
+      setRates(next);
+
+      const first = next[0] ?? null;
+      setSelectedId(first?.currencyId ?? null);
+      setRateInput(first ? String(first.rateToBase) : "");
 
       if (currenciesResult.status === "fulfilled" && market.baseCurrencyId) {
         const base = currenciesResult.value.find(
@@ -118,7 +125,8 @@ function ExchangeRateButtonContent() {
       }
     } catch (err) {
       setRates([]);
-      setCurrencies([]);
+      setSelectedId(null);
+      setRateInput("");
       setLoadError(extractApiErrorMessage(err, "خطا در دریافت نرخ ارزها"));
     } finally {
       setLoading(false);
@@ -127,44 +135,58 @@ function ExchangeRateButtonContent() {
 
   function handleOpen() {
     setOpen(true);
-    setEntry("");
     setFormError(null);
     void load();
   }
 
-  /** ارز متناظر با کدی که کاربر تا الان تایپ کرده است */
-  const matched = useMemo(() => {
-    const code = readCode(entry);
-    if (!code) return null;
-    const currency = currencies.find((item) => item.code.toUpperCase() === code);
-    if (!currency) return { code, missing: true as const };
-    const rate = rates.find((item) => item.currencyId === currency.id) ?? null;
-    return { code, missing: false as const, currency, rate };
-  }, [entry, currencies, rates]);
+  /** نرخ‌های ثبت‌شده، مرتب‌شده بر اساس کد ارز */
+  const sortedRates = useMemo(
+    () =>
+      [...rates].sort((a, b) =>
+        (a.currencyCode ?? "").localeCompare(b.currencyCode ?? "")
+      ),
+    [rates]
+  );
+
+  const selected = useMemo(
+    () => sortedRates.find((rate) => rate.currencyId === selectedId) ?? null,
+    [sortedRates, selectedId]
+  );
+
+  const dirty = useMemo(() => {
+    if (!selected) return false;
+    const parsed = Number.parseFloat(rateInput);
+    return (
+      rateInput.trim() !== "" &&
+      Number.isFinite(parsed) &&
+      parsed !== selected.rateToBase
+    );
+  }, [selected, rateInput]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
-    const parsed = parseEntry(entry);
-    if (!parsed) {
-      setFormError(`فرمت وارد شده صحیح نیست — مثال: ${ENTRY_PLACEHOLDER}`);
+    if (!selected) {
+      setFormError("ابتدا یک ارز را از لیست انتخاب کنید");
       return;
     }
 
-    const currency = currencies.find((item) => item.code.toUpperCase() === parsed.code);
-    if (!currency) {
-      setFormError(`کد ارز «${parsed.code}» در سیستم تعریف نشده است`);
+    if (rateInput.trim() === "") {
+      setFormError("نرخ ارز را وارد کنید");
       return;
     }
 
-    if (parsed.rate <= 0) {
+    const parsed = Number.parseFloat(rateInput);
+    if (!Number.isFinite(parsed)) {
+      setFormError("نرخ ارز باید یک عدد باشد");
+      return;
+    }
+    if (parsed <= 0) {
       setFormError("نرخ ارز باید عددی بزرگ‌تر از صفر باشد");
       return;
     }
-
-    const existing = rates.find((item) => item.currencyId === currency.id);
-    if (existing && existing.rateToBase === parsed.rate) {
+    if (parsed === selected.rateToBase) {
       toast.error("نرخ وارد شده با نرخ فعلی یکسان است");
       setOpen(false);
       return;
@@ -174,17 +196,13 @@ function ExchangeRateButtonContent() {
     try {
       const market = await resolveMarket();
       const saved = await setExchangeRate(market.id, {
-        currencyId: currency.id,
-        rateToBase: parsed.rate,
+        currencyId: selected.currencyId,
+        rateToBase: parsed,
       });
 
-      setRates((prev) => {
-        const next = prev.filter((item) => item.currencyId !== currency.id);
-        return [...next, saved];
-      });
-
-      toast.success(`نرخ ${currency.code} با موفقیت ذخیره شد`);
-      setEntry("");
+      setRates((prev) => prev.map((rate) => (rate.currencyId === saved.currencyId ? saved : rate)));
+      setRateInput(String(saved.rateToBase));
+      toast.success(`نرخ ${saved.currencyCode ?? "ارز"} با موفقیت ذخیره شد`);
       setOpen(false);
     } catch (err) {
       toast.error(extractApiErrorMessage(err, "ذخیره نرخ ارز ناموفق بود"));
@@ -192,6 +210,8 @@ function ExchangeRateButtonContent() {
       setSaving(false);
     }
   };
+
+  const effectiveDate = formatEffectiveDate(selected?.effectiveDate ?? null);
 
   return (
     <>
@@ -208,12 +228,12 @@ function ExchangeRateButtonContent() {
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[420px]">
+        <DialogContent className="sm:max-w-[440px]">
           <form onSubmit={handleSubmit} className="space-y-4">
             <DialogHeader className="text-right">
-              <DialogTitle className="text-right">ثبت نرخ ارز</DialogTitle>
+              <DialogTitle className="text-right">ویرایش نرخ ارز</DialogTitle>
               <DialogDescription>
-                کد ارز و نرخ آن را نسبت به ارز پایه مارکت بنویسید
+                یک ارز را از لیست انتخاب کنید و نرخ آن را نسبت به ارز پایه ویرایش کنید
                 {baseCurrencyCode ? ` (${baseCurrencyCode})` : ""}.
               </DialogDescription>
             </DialogHeader>
@@ -230,46 +250,84 @@ function ExchangeRateButtonContent() {
                   تلاش مجدد
                 </Button>
               </div>
+            ) : sortedRates.length === 0 ? (
+              <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+                برای هیچ ارزی در این مارکت نرخی ثبت نشده است
+              </p>
             ) : (
               <div className="space-y-3">
-                <div className="mx-auto w-full max-w-[260px]">
-                  <Input
-                    value={entry}
-                    onChange={(e) => {
-                      setEntry(e.target.value);
-                      setFormError(null);
-                    }}
-                    placeholder={ENTRY_PLACEHOLDER}
-                    dir="ltr"
-                    autoComplete="off"
-                    autoFocus
-                    disabled={saving}
-                    className="h-11 text-center text-base tracking-wide"
-                    aria-label="کد ارز و نرخ"
-                  />
+                <div className="space-y-2 text-center">
+                  <p className="text-sm font-medium">
+                    {selected?.currencyName ?? "—"}
+                    <span dir="ltr" className="mr-1.5 text-xs text-muted-foreground">
+                      {selected?.currencyCode ?? "—"}
+                    </span>
+                  </p>
+
+                  <div className="mx-auto w-full max-w-[200px]">
+                    <Input
+                      type="number"
+                      step="any"
+                      min="0"
+                      value={rateInput}
+                      onChange={(e) => {
+                        setRateInput(e.target.value);
+                        setFormError(null);
+                      }}
+                      disabled={saving}
+                      className={cn(
+                        "h-11 text-center text-base tabular-nums",
+                        dirty && "border-amber-500/60"
+                      )}
+                      aria-label="نرخ ارز"
+                    />
+                  </div>
+
+                  <p className="min-h-4 text-xs text-muted-foreground">
+                    {effectiveDate && <>اعتبار از {effectiveDate}</>}
+                    {dirty && " — نرخ تغییر کرده، برای اعمال ذخیره را بزنید"}
+                  </p>
                 </div>
 
-                <p
-                  className={cn(
-                    "min-h-4 text-center text-xs",
-                    matched?.missing ? "text-destructive" : "text-muted-foreground"
-                  )}
-                >
-                  {!matched && currencies.length > 0 && (
-                    <>کدهای موجود: {currencies.map((c) => c.code).join("، ")}</>
-                  )}
-                  {matched?.missing && (
-                    <>کد «{matched.code}» در سیستم تعریف نشده است</>
-                  )}
-                  {matched && !matched.missing && matched.rate && (
-                    <>
-                      نرخ فعلی {matched.currency.code}: {matched.rate.rateToBase}
-                    </>
-                  )}
-                  {matched && !matched.missing && !matched.rate && (
-                    <>برای {matched.currency.code} نرخی ثبت نشده — نرخ جدید ثبت می‌شود</>
-                  )}
-                </p>
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    نرخ‌های ثبت‌شده برای این مارکت ({sortedRates.length})
+                  </p>
+
+                  <div className="max-h-[190px] overflow-y-auto rounded-lg border border-border">
+                    {sortedRates.map((rate) => {
+                      const active = rate.currencyId === selectedId;
+
+                      return (
+                        <button
+                          type="button"
+                          key={rate.currencyId}
+                          onClick={() => selectRate(rate)}
+                          className={cn(
+                            "flex w-full items-center gap-3 border-b border-border px-3 py-2 text-right transition-colors last:border-b-0 hover:bg-secondary/50",
+                            active && "bg-secondary"
+                          )}
+                        >
+                          <span className="min-w-0 flex-1 truncate text-sm">
+                            {rate.currencyName ?? "—"}
+                            <span
+                              dir="ltr"
+                              className="mr-1.5 text-xs text-muted-foreground"
+                            >
+                              {rate.currencyCode ?? "—"}
+                            </span>
+                          </span>
+                          <span
+                            dir="ltr"
+                            className="shrink-0 text-sm font-medium tabular-nums"
+                          >
+                            {rate.rateToBase}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -281,7 +339,7 @@ function ExchangeRateButtonContent() {
 
             <DialogFooter className="gap-2 sm:gap-2">
               <DialogClose render={<Button type="button" variant="outline">انصراف</Button>} />
-              <Button type="submit" disabled={saving || loading || !!loadError}>
+              <Button type="submit" disabled={saving || loading || !!loadError || !selected}>
                 {saving && <Loader2 data-icon="inline-start" className="animate-spin" />}
                 {saving ? "در حال ذخیره..." : "ذخیره"}
               </Button>
