@@ -9,12 +9,12 @@ import {
   Bell,
   Menu,
   X,
-  DollarSign,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ModeToggle } from "../ModeToggle";
+import { ExchangeRateButton } from "@/components/client/exchange-rate-dialog";
 import Link from 'next/link'
 
 export function Topbar({
@@ -220,14 +220,7 @@ export function Topbar({
         "
       >
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9"
-          >
-            {/* <Palette className="h-[18px] w-[18px]" /> */}
-            <DollarSign  className="h-4 w-4" />
-          </Button>
+          <ExchangeRateButton />
 
 
         {/* <Button
