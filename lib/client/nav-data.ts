@@ -254,27 +254,27 @@ export const navSections: NavSection[] = [
             href: "/reports/balances",
           },
           {
-            label: "تفکیک مصارف",
+            label: "گزارش مصارف",
             href: "/reports/expenses",
           },
           {
-            label: "عملکرد وصول اجاره",
+            label: "گزارش اجاره ها",
             href: "/reports/rent",
           },
           {
-            label: "عملکرد وصول برق",
+            label: "گزارش وصول برق",
             href: "/reports/electricity",
           },
           {
-            label: "اشغال دکان‌ها",
+            label: "گزارش  دکان‌ها",
             href: "/reports/occupancy",
           },
           {
-            label: "اقساط بدهی",
+            label: "گزارش بدهی",
             href: "/reports/debt-aging",
           },
           {
-            label: "خلاصه سهام",
+            label: "گزارش سهام",
             href: "/reports/equity",
           },
           {

@@ -219,12 +219,14 @@ function ExchangeRateButtonContent() {
         type="button"
         variant="ghost"
         size="icon"
-        className="h-9 w-9"
+        className="h-12 w-12"
         onClick={handleOpen}
         aria-label="نرخ ارز"
         title="نرخ ارز"
       >
-        <DollarSign className="h-4 w-4" />
+        
+        نرخ ارز
+        
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
