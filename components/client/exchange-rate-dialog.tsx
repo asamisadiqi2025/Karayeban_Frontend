@@ -139,36 +139,12 @@ function ExchangeRateButtonContent() {
     void load();
   }
 
-  /** نرخ‌های ثبت‌شده، مرتب‌شده بر اساس کد ارز */
-  const sortedRates = useMemo(
-    () =>
-      [...rates].sort((a, b) =>
-        (a.currencyCode ?? "").localeCompare(b.currencyCode ?? "")
-      ),
-    [rates]
-  );
-
-  const selected = useMemo(
-    () => sortedRates.find((rate) => rate.currencyId === selectedId) ?? null,
-    [sortedRates, selectedId]
-  );
-
-  const dirty = useMemo(() => {
-    if (!selected) return false;
-    const parsed = Number.parseFloat(rateInput);
-    return (
-      rateInput.trim() !== "" &&
-      Number.isFinite(parsed) &&
-      parsed !== selected.rateToBase
-    );
-  }, [selected, rateInput]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
-    if (!selected) {
-      setFormError("ابتدا یک ارز را از لیست انتخاب کنید");
+    if (!selectedId) {
+      setFormError("نرخی برای ویرایش وجود ندارد");
       return;
     }
 
@@ -186,21 +162,18 @@ function ExchangeRateButtonContent() {
       setFormError("نرخ ارز باید عددی بزرگ‌تر از صفر باشد");
       return;
     }
-    if (parsed === selected.rateToBase) {
-      toast.error("نرخ وارد شده با نرخ فعلی یکسان است");
-      setOpen(false);
-      return;
-    }
 
     setSaving(true);
     try {
       const market = await resolveMarket();
       const saved = await setExchangeRate(market.id, {
-        currencyId: selected.currencyId,
+        currencyId: selectedId,
         rateToBase: parsed,
       });
 
-      setRates((prev) => prev.map((rate) => (rate.currencyId === saved.currencyId ? saved : rate)));
+      setRates((prev) =>
+        prev.map((rate) => (rate.currencyId === saved.currencyId ? saved : rate))
+      );
       setRateInput(String(saved.rateToBase));
       toast.success(`نرخ ${saved.currencyCode ?? "ارز"} با موفقیت ذخیره شد`);
       setOpen(false);
@@ -211,7 +184,6 @@ function ExchangeRateButtonContent() {
     }
   };
 
-  const effectiveDate = formatEffectiveDate(selected?.effectiveDate ?? null);
 
   return (
     <>
@@ -235,8 +207,8 @@ function ExchangeRateButtonContent() {
             <DialogHeader className="text-right">
               <DialogTitle className="text-right">ویرایش نرخ ارز</DialogTitle>
               <DialogDescription>
-                یک ارز را از لیست انتخاب کنید و نرخ آن را نسبت به ارز پایه ویرایش کنید
-                {baseCurrencyCode ? ` (${baseCurrencyCode})` : ""}.
+                نرخ ارز را ویرایش کنید
+                {baseCurrencyCode ? ` (نسبت به ${baseCurrencyCode})` : ""}.
               </DialogDescription>
             </DialogHeader>
 
@@ -252,85 +224,18 @@ function ExchangeRateButtonContent() {
                   تلاش مجدد
                 </Button>
               </div>
-            ) : sortedRates.length === 0 ? (
-              <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-                برای هیچ ارزی در این مارکت نرخی ثبت نشده است
-              </p>
             ) : (
-              <div className="space-y-3">
-                <div className="space-y-2 text-center">
-                  <p className="text-sm font-medium">
-                    {selected?.currencyName ?? "—"}
-                    <span dir="ltr" className="mr-1.5 text-xs text-muted-foreground">
-                      {selected?.currencyCode ?? "—"}
-                    </span>
-                  </p>
-
-                  <div className="mx-auto w-full max-w-[200px]">
-                    <Input
-                      type="number"
-                      step="any"
-                      min="0"
-                      value={rateInput}
-                      onChange={(e) => {
-                        setRateInput(e.target.value);
-                        setFormError(null);
-                      }}
-                      disabled={saving}
-                      className={cn(
-                        "h-11 text-center text-base tabular-nums",
-                        dirty && "border-amber-500/60"
-                      )}
-                      aria-label="نرخ ارز"
-                    />
-                  </div>
-
-                  <p className="min-h-4 text-xs text-muted-foreground">
-                    {effectiveDate && <>اعتبار از {effectiveDate}</>}
-                    {dirty && " — نرخ تغییر کرده، برای اعمال ذخیره را بزنید"}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">
-                    نرخ‌های ثبت‌شده برای این مارکت ({sortedRates.length})
-                  </p>
-
-                  <div className="max-h-[190px] overflow-y-auto rounded-lg border border-border">
-                    {sortedRates.map((rate) => {
-                      const active = rate.currencyId === selectedId;
-
-                      return (
-                        <button
-                          type="button"
-                          key={rate.currencyId}
-                          onClick={() => selectRate(rate)}
-                          className={cn(
-                            "flex w-full items-center gap-3 border-b border-border px-3 py-2 text-right transition-colors last:border-b-0 hover:bg-secondary/50",
-                            active && "bg-secondary"
-                          )}
-                        >
-                          <span className="min-w-0 flex-1 truncate text-sm">
-                            {rate.currencyName ?? "—"}
-                            <span
-                              dir="ltr"
-                              className="mr-1.5 text-xs text-muted-foreground"
-                            >
-                              {rate.currencyCode ?? "—"}
-                            </span>
-                          </span>
-                          <span
-                            dir="ltr"
-                            className="shrink-0 text-sm font-medium tabular-nums"
-                          >
-                            {rate.rateToBase}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
+              <Input
+                type="text"
+                value={rateInput}
+                onChange={(e) => {
+                  setRateInput(e.target.value);
+                  setFormError(null);
+                }}
+                disabled={saving}
+                placeholder="نرخ ارز"
+                aria-label="نرخ ارز"
+              />
             )}
 
             {formError && (
@@ -341,7 +246,7 @@ function ExchangeRateButtonContent() {
 
             <DialogFooter className="gap-2 sm:gap-2">
               <DialogClose render={<Button type="button" variant="outline">انصراف</Button>} />
-              <Button type="submit" disabled={saving || loading || !!loadError || !selected}>
+              <Button type="submit" disabled={saving || loading || !!loadError || !selectedId}>
                 {saving && <Loader2 data-icon="inline-start" className="animate-spin" />}
                 {saving ? "در حال ذخیره..." : "ذخیره"}
               </Button>
