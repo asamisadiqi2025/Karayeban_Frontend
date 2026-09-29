@@ -171,6 +171,14 @@ export const navSections: NavSection[] = [
             href: "/finance/bankaccounts",
           },
           {
+            label: "جزئیات حساب",
+            href: "/finance/account-detail",
+          },
+          {
+            label: "صورت حساب بانکی",
+            href: "/finance/account-statement",
+          },
+          {
             label: " انتقال بانکی واحدات یکسان",
             href: "/finance/bank-transfers",
           },

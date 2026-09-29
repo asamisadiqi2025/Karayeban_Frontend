@@ -87,6 +87,123 @@ export async function fetchBankAccounts(): Promise<BankAccount[]> {
 }
 
 /**
+ * دریافت یک حساب نقدی یا بانکی
+ * GET /accounts/:id
+ */
+export async function fetchBankAccount(id: string): Promise<BankAccount> {
+  const { data } = await apiClient.get(`/accounts/${id}`);
+  return normalizeBankAccount(data?.data ?? data ?? {});
+}
+
+export type AccountEntryDirection = "IN" | "OUT";
+
+export interface AccountStatementEntry {
+  id: string;
+  entryDate: string;
+  description: string;
+  direction: AccountEntryDirection;
+  amount: string;
+  balance: string;
+}
+
+export interface AccountStatement {
+  accountId: string;
+  accountName: string;
+  currencyId: string;
+  from: string;
+  to: string;
+  openingBalance: string;
+  totalIn: string;
+  totalOut: string;
+  closingBalance: string;
+  transactions: AccountStatementEntry[];
+}
+
+export interface AccountStatementParams {
+  from: string;
+  to: string;
+}
+
+interface RawEntry {
+  id?: string;
+  _id?: string;
+  entryDate?: string;
+  entry_date?: string;
+  date?: string;
+  description?: string;
+  notes?: string;
+  direction?: string;
+  amount?: unknown;
+  balance?: unknown;
+}
+
+interface RawAccountStatement {
+  accountId?: string;
+  account_id?: string;
+  accountName?: string;
+  account_name?: string;
+  currencyId?: string;
+  currency_id?: string;
+  from?: string;
+  to?: string;
+  openingBalance?: unknown;
+  opening_balance?: unknown;
+  totalIn?: unknown;
+  total_in?: unknown;
+  totalOut?: unknown;
+  total_out?: unknown;
+  closingBalance?: unknown;
+  closing_balance?: unknown;
+  transactions?: RawEntry[];
+}
+
+function toStr(value: unknown): string {
+  if (value == null) return "0";
+  return typeof value === "string" ? value : String(value);
+}
+
+function normalizeEntry(raw: RawEntry): AccountStatementEntry {
+  return {
+    id: raw.id ?? raw._id ?? "",
+    entryDate: raw.entryDate ?? raw.entry_date ?? raw.date ?? "",
+    description: raw.description ?? raw.notes ?? "",
+    direction: (raw.direction ?? "IN").toUpperCase() as AccountEntryDirection,
+    amount: toStr(raw.amount),
+    balance: toStr(raw.balance),
+  };
+}
+
+/**
+ * صورت حساب یک حساب در بازه تاریخی
+ * GET /accounts/:id/statement?from=&to=
+ *
+ * تاریخ‌ها میلادی و به فرمت YYYY-MM-DD هستند، حتی وقتی رابط کاربری شمسی است.
+ */
+export async function fetchAccountStatement(
+  id: string,
+  params: AccountStatementParams,
+): Promise<AccountStatement> {
+  const { data } = await apiClient.get<{ data?: RawAccountStatement }>(
+    `/accounts/${id}/statement`,
+    { params: { from: params.from, to: params.to } },
+  );
+  const body = (data?.data ?? (data as unknown as RawAccountStatement) ?? {}) as RawAccountStatement;
+  const transactions = Array.isArray(body.transactions) ? body.transactions : [];
+  return {
+    accountId: toStr(body.accountId ?? body.account_id),
+    accountName: body.accountName ?? body.account_name ?? "",
+    currencyId: toStr(body.currencyId ?? body.currency_id),
+    from: toStr(body.from),
+    to: toStr(body.to),
+    openingBalance: toStr(body.openingBalance ?? body.opening_balance),
+    totalIn: toStr(body.totalIn ?? body.total_in),
+    totalOut: toStr(body.totalOut ?? body.total_out),
+    closingBalance: toStr(body.closingBalance ?? body.closing_balance),
+    transactions: transactions.map(normalizeEntry),
+  };
+}
+
+/**
  * ایجاد حساب نقدی یا بانکی
  * POST /accounts
  * body: { name, type: CASH|BANK, currencyId, openingBalance: { amount }, bankName?, accountNumber? }
