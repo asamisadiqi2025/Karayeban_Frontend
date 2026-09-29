@@ -208,6 +208,10 @@ export const navSections: NavSection[] = [
           {
             label: "انتقال بین گدام‌ها",
             href: "/inventory/transactions/transfer",
+          },
+          {
+            label: "موجودی انبار",
+            href: "/inventory/stock-balance",
           }
         ],
       },
