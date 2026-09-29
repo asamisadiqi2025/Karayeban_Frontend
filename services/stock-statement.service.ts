@@ -125,6 +125,33 @@ interface RawStockStatement {
   items?: RawItem[];
 }
 
+export interface ItemStockStatementParams {
+  itemId: string;
+  from: string;
+  to: string;
+}
+
+/**
+ * صورت موجودی یک جنس در بازه تاریخی
+ * GET /inventory/stock-statement?itemId=&from=&to=
+ *
+ * همین اندپوینت وقتی itemId داشته باشد به‌جای items آرایه‌ای، یک item برمی‌گرداند.
+ */
+export async function fetchItemStockStatement(
+  params: ItemStockStatementParams,
+): Promise<StockStatementItem | null> {
+  const { data } = await apiClient.get<{
+    data?: { from?: string; to?: string; item?: RawItem | null };
+    from?: string;
+    to?: string;
+    item?: RawItem | null;
+  }>("/inventory/stock-statement", {
+    params: { itemId: params.itemId, from: params.from, to: params.to },
+  });
+  const body = data?.data ?? (data as unknown as { item?: RawItem | null }) ?? {};
+  return body.item ? normalizeItem(body.item) : null;
+}
+
 /**
  * صورت موجودی اجناس یک گدام در بازه تاریخی
  * GET /inventory/stock-statement?warehouseId=&from=&to=

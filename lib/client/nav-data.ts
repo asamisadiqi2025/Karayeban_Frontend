@@ -212,6 +212,10 @@ export const navSections: NavSection[] = [
           {
             label: "موجودی انبار",
             href: "/inventory/stock-balance",
+          },
+          {
+            label: "صورت موجودی جنس",
+            href: "/inventory/stock-balance/item",
           }
         ],
       },
