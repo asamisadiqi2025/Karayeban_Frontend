@@ -208,7 +208,7 @@ export const navSections: NavSection[] = [
           {
             label: "انتقال بین گدام‌ها",
             href: "/inventory/transactions/transfer",
-          },
+          }
         ],
       },
       // مدیریت مصارف
@@ -281,6 +281,7 @@ export const navSections: NavSection[] = [
             label: "گردش گدام",
             href: "/reports/inventory-movement",
           },
+       
         ],
       },
 
