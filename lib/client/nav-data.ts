@@ -138,12 +138,16 @@ export const navSections: NavSection[] = [
       // برق
       {
         label: "برق",
-        href: "/meter",
+        href: "/meters/electricity",
         icon: BellElectric,
         submenu: [
           {
             label: "میترها",
             href: "/meters/electricity",
+          },
+          {
+            label: "مدت زمان قرائت میتر",
+            href: "/meters/electricity/billing-cycles",
           },
           {
             label: "دریافت پول برق",
