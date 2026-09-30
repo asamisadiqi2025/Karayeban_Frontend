@@ -138,12 +138,20 @@ export const navSections: NavSection[] = [
       // برق
       {
         label: "برق",
-        href: "/meter",
+        href: "/meters/electricity",
         icon: BellElectric,
         submenu: [
           {
             label: "میترها",
             href: "/meters/electricity",
+          },
+          {
+            label: "مدت زمان قرائت میتر",
+            href: "/meters/electricity/billing-cycles",
+          },
+          {
+            label: "قبض‌های برق",
+            href: "/meters/electricity/bills",
           },
           {
             label: "دریافت پول برق",
@@ -169,6 +177,14 @@ export const navSections: NavSection[] = [
           {
             label: "ایجاد بانک",
             href: "/finance/bankaccounts",
+          },
+          {
+            label: "جزئیات حساب",
+            href: "/finance/account-detail",
+          },
+          {
+            label: "صورت حساب بانکی",
+            href: "/finance/account-statement",
           },
           {
             label: " انتقال بانکی واحدات یکسان",
@@ -209,6 +225,14 @@ export const navSections: NavSection[] = [
             label: "انتقال بین گدام‌ها",
             href: "/inventory/transactions/transfer",
           },
+          {
+            label: "موجودی انبار",
+            href: "/inventory/stock-balance",
+          },
+          {
+            label: "صورت موجودی جنس",
+            href: "/inventory/stock-balance/item",
+          }
         ],
       },
       // مدیریت مصارف
@@ -237,6 +261,16 @@ export const navSections: NavSection[] = [
         label: "دارایی‌های ثابت",
         href: "/assets",
         icon: Landmark,
+        submenu: [
+          {
+            label: "دارایی‌ها",
+            href: "/assets",
+          },
+          {
+            label: "خلاصه دارایی‌ها",
+            href: "/assets/summary",
+          },
+        ],
       },
 
       // گزارشات
@@ -244,6 +278,45 @@ export const navSections: NavSection[] = [
         label: "گزارشات",
         href: "/reports",
         icon: BarChart3,
+        submenu: [
+          {
+            label: "خلاصه مالی",
+            href: "/reports/financials",
+          },
+          {
+            label: "موجودی حساب‌ها",
+            href: "/reports/balances",
+          },
+          {
+            label: "گزارش مصارف",
+            href: "/reports/expenses",
+          },
+          {
+            label: "گزارش اجاره ها",
+            href: "/reports/rent",
+          },
+          {
+            label: "گزارش وصول برق",
+            href: "/reports/electricity",
+          },
+          {
+            label: "گزارش  دکان‌ها",
+            href: "/reports/occupancy",
+          },
+          {
+            label: "گزارش بدهی",
+            href: "/reports/debt-aging",
+          },
+          {
+            label: "گزارش سهام",
+            href: "/reports/equity",
+          },
+          {
+            label: "گردش گدام",
+            href: "/reports/inventory-movement",
+          },
+       
+        ],
       },
 
       // اعلان‌ها
@@ -279,6 +352,10 @@ export const navSections: NavSection[] = [
           {
             label: "اضافه کردن واحدات",
             href: "/settings/units",
+          },
+          {
+            label: "لاگ های سیستم",
+            href: "/settings/logs",
           },
         ],
       },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Search, ReceiptText, Loader2 } from "lucide-react";
+import { Plus, Search, ReceiptText, Loader2, ChevronRight, ChevronsRight } from "lucide-react";
 
 import { PageHeader } from "@/components/server/dashboard/page-header";
 import { Card } from "@/components/ui/card";
@@ -32,6 +32,7 @@ import {
   fetchRentPayments,
   createRentPayment,
   type RentPayment,
+  type RentPaymentMeta,
   type PaymentMethod,
 } from "@/services/rent-payment.service";
 import { fetchContracts, type Contract } from "@/services/contract.service";
@@ -86,6 +87,18 @@ function RentPaymentsPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
+  const pageSize = 20;
+  const [page, setPage] = useState(1);
+  const [reloadToken, setReloadToken] = useState(0);
+  const [meta, setMeta] = useState<RentPaymentMeta>({
+    total: 0,
+    page: 1,
+    limit: pageSize,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPrevPage: false,
+  });
+
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -99,37 +112,46 @@ function RentPaymentsPageContent() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    try {
-      const result = await fetchRentPayments();
-      setPayments(Array.isArray(result) ? result : []);
-    } catch (err) {
-      setError(extractApiErrorMessage(err, "خطا در دریافت پرداخت‌های اجاره"));
-    } finally {
-      setLoading(false);
-    }
+    setReloadToken((t) => t + 1);
   }, []);
 
   useEffect(() => {
     let cancelled = false;
+    fetchRentPayments({ page, limit: pageSize })
+      .then((result) => {
+        if (cancelled) return;
+        setPayments(result.items);
+        setMeta(result.meta);
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(extractApiErrorMessage(err, "خطا در دریافت پرداخت‌های اجاره"));
+        setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [page, reloadToken]);
+
+  function goToPage(next: number) {
+    if (next === page || next < 1 || next > meta.totalPages) return;
+    setLoading(true);
+    setError(null);
+    setPage(next);
+  }
+
+  useEffect(() => {
+    let cancelled = false;
     Promise.allSettled([
-      fetchRentPayments(),
       fetchContracts(),
       fetchShops(),
       fetchTenants(),
       fetchBankAccounts(),
-    ]).then(([payResult, conResult, shopResult, tenantResult, accResult]) => {
+    ]).then(([conResult, shopResult, tenantResult, accResult]) => {
       if (cancelled) return;
-      if (payResult.status === "fulfilled") {
-        setPayments(Array.isArray(payResult.value) ? payResult.value : []);
-      } else {
-        setError(extractApiErrorMessage(payResult.reason, "خطا در دریافت پرداخت‌های اجاره"));
-      }
       if (conResult.status === "fulfilled") setContracts(conResult.value);
       if (shopResult.status === "fulfilled") setShops(shopResult.value);
       if (tenantResult.status === "fulfilled") setTenants(tenantResult.value);
       if (accResult.status === "fulfilled") setAccounts(accResult.value);
-    }).finally(() => {
-      if (!cancelled) setLoading(false);
     });
     return () => { cancelled = true; };
   }, []);
@@ -158,16 +180,29 @@ function RentPaymentsPageContent() {
     return m;
   }, [accounts]);
 
-  const filtered = useMemo(() => {
-    if (query.trim() === "") return payments;
-    return payments.filter((p) => {
-      const contract = contractMap.get(p.contractId);
-      const shop = contract ? shopMap.get(contract.shopId) : shopMap.get(p.shopId);
-      const tenant = contract ? tenantMap.get(contract.tenantId) : tenantMap.get(p.tenantId);
-      const searchText = `${shop?.shopNumber ?? ""} ${tenant?.fullName ?? ""} ${p.notes ?? ""}`.toLowerCase();
-      return searchText.includes(query.toLowerCase());
+  const rows = useMemo(() => {
+    return payments.map((payment) => {
+      const contract = contractMap.get(payment.contractId);
+      const shopNumber =
+        payment.shop?.shopNumber ||
+        shopMap.get(contract?.shopId ?? payment.shopId)?.shopNumber ||
+        "";
+      const tenantName =
+        payment.tenant?.fullName ||
+        tenantMap.get(contract?.tenantId ?? payment.tenantId)?.fullName ||
+        "";
+      return { payment, shopNumber, tenantName };
     });
-  }, [payments, query, contractMap, shopMap, tenantMap]);
+  }, [payments, contractMap, shopMap, tenantMap]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (q === "") return rows;
+    return rows.filter(({ payment, shopNumber, tenantName }) => {
+      const searchText = `${shopNumber} ${tenantName} ${payment.notes ?? ""}`.toLowerCase();
+      return searchText.includes(q);
+    });
+  }, [rows, query]);
 
   function getContractLabel(contractId: string): string {
     const contract = contractMap.get(contractId);
@@ -203,10 +238,13 @@ function RentPaymentsPageContent() {
 
     setSaving(true);
     try {
-      const created = await createRentPayment(payload);
-      setPayments((prev) => [created, ...prev]);
+      await createRentPayment(payload);
       toast.success("پرداخت اجاره جدید با موفقیت ثبت شد");
       setDialogOpen(false);
+      setLoading(true);
+      setError(null);
+      setPage(1);
+      setReloadToken((t) => t + 1);
     } catch (err) {
       toast.error(extractApiErrorMessage(err, "ثبت پرداخت اجاره ناموفق بود"));
     } finally {
@@ -240,7 +278,7 @@ function RentPaymentsPageContent() {
               همه پرداخت‌ها
               {!loading && (
                 <span className="mr-1.5 text-xs font-normal text-muted-foreground">
-                  ({filtered.length.toLocaleString("fa-AF")} مورد)
+                  ({meta.total.toLocaleString("fa-AF")} مورد)
                 </span>
               )}
             </h2>
@@ -301,10 +339,7 @@ function RentPaymentsPageContent() {
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((payment) => {
-                const contract = contractMap.get(payment.contractId);
-                const shop = contract ? shopMap.get(contract.shopId) : shopMap.get(payment.shopId);
-                const tenant = contract ? tenantMap.get(contract.tenantId) : tenantMap.get(payment.tenantId);
+              filtered.map(({ payment, shopNumber, tenantName }) => {
                 const paymentMethodLabel = paymentMethods.find((m) => m.value === payment.paymentMethod)?.label ?? payment.paymentMethod;
 
                 return (
@@ -318,10 +353,10 @@ function RentPaymentsPageContent() {
                         </div>
                         <div className="flex flex-col">
                           <span className="font-medium text-foreground">
-                            دوکان {shop?.shopNumber ?? "—"}
+                            دوکان {shopNumber || "—"}
                           </span>
                           <span className="text-xs text-muted-foreground">
-                            {tenant?.fullName ?? "—"}
+                            {tenantName || "—"}
                           </span>
                         </div>
                       </div>
@@ -349,6 +384,66 @@ function RentPaymentsPageContent() {
             )}
           </TableBody>
         </Table>
+
+        {!loading && !error && meta.total > 0 && (
+          <div className="flex flex-col items-center justify-between gap-3 border-t p-4 sm:flex-row">
+            <p className="text-xs text-muted-foreground">
+              نشان دادن{" "}
+              <span className="font-medium text-foreground">
+                {(meta.page - 1) * meta.limit + 1}
+                {"–"}
+                {Math.min(meta.page * meta.limit, meta.total)}
+              </span>{" "}
+              از <span className="font-medium text-foreground">{meta.total.toLocaleString("fa-AF")}</span>{" "}
+              مورد — صفحه {meta.page.toLocaleString("fa-AF")} از{" "}
+              {meta.totalPages.toLocaleString("fa-AF")}
+            </p>
+
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon-sm"
+                disabled={!meta.hasPrevPage}
+                onClick={() => goToPage(1)}
+                aria-label="صفحه اول"
+              >
+                <ChevronsRight className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                disabled={!meta.hasPrevPage}
+                onClick={() => goToPage(meta.page - 1)}
+                aria-label="صفحه قبل"
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+
+              <span className="mx-1 min-w-[60px] text-center text-xs font-medium text-foreground">
+                {meta.page.toLocaleString("fa-AF")} / {meta.totalPages.toLocaleString("fa-AF")}
+              </span>
+
+              <Button
+                variant="outline"
+                size="icon-sm"
+                disabled={!meta.hasNextPage}
+                onClick={() => goToPage(meta.page + 1)}
+                aria-label="صفحه بعد"
+              >
+                <ChevronRight className="h-3.5 w-3.5 rotate-180" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                disabled={!meta.hasNextPage}
+                onClick={() => goToPage(meta.totalPages)}
+                aria-label="صفحه آخر"
+              >
+                <ChevronsRight className="h-3.5 w-3.5 rotate-180" />
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ModeToggle } from "../ModeToggle";
+import { ExchangeRateButton } from "@/components/client/exchange-rate-dialog";
 import Link from 'next/link'
 
 export function Topbar({
@@ -219,6 +220,8 @@ export function Topbar({
         "
       >
 
+          <ExchangeRateButton />
+
 
         {/* <Button
           size="sm"
@@ -254,6 +257,7 @@ export function Topbar({
             className="h-9 w-9"
           >
             <Palette className="h-[18px] w-[18px]" />
+       
           </Button> */}
 
 

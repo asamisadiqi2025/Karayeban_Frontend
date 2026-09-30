@@ -383,25 +383,7 @@ function InventoryUnitsContent() {
                 </div>
               </div>
 
-              <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3.5">
-                <input
-                  id="unit-active"
-                  type="checkbox"
-                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-primary"
-                  checked={form.isActive}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, isActive: e.target.checked }))
-                  }
-                />
-                <div className="space-y-0.5">
-                  <span className="block text-sm font-medium text-foreground">
-                    وضعیت فعال
-                  </span>
-                  <span className="block text-xs text-muted-foreground">
-                    در صورت غیرفعال بودن، واحد در انتخاب‌ها نمایش داده نمی‌شود
-                  </span>
-                </div>
-              </label>
+             
             </div>
 
             {formError && (
@@ -410,7 +392,7 @@ function InventoryUnitsContent() {
               </p>
             )}
 
-            <DialogFooter className="gap-2 sm:gap-2">
+            <DialogFooter className="gap-2 sm:gap-2 bm-4">
               <DialogClose
                 render={
                   <Button type="button" variant="outline">

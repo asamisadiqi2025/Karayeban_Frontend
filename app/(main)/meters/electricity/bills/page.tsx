@@ -8,6 +8,7 @@ import {
   Loader2,
   ChevronRight,
   ChevronsRight,
+  Zap,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/server/dashboard/page-header";
@@ -43,63 +44,77 @@ import {
 } from "@/components/ui/table";
 
 import {
-  fetchElectricityPayments,
-  createElectricityPayment,
-  unallocatedAmount,
-  type ElectricityPayment,
-  type ElectricityPaymentMeta,
-  type PaymentMethod,
-} from "@/services/electricity-payment.service";
+  fetchElectricityBills,
+  createElectricityBill,
+  type ElectricityBill,
+  type ElectricityBillMeta,
+  type ElectricityBillStatus,
+} from "@/services/electricity-bill.service";
+import { fetchMeters, type Meter } from "@/services/meter.service";
 import { fetchContracts, type Contract } from "@/services/contract.service";
 import { fetchShops, type Shop } from "@/services/shop.service";
 import { fetchTenants, type Tenant } from "@/services/tenant.service";
-import { fetchBankAccounts, type BankAccount } from "@/services/bank-account.service";
 import {
   fetchAddedCurrencies,
   type AddedCurrency,
 } from "@/services/currency.service";
 import { extractApiErrorMessage } from "@/services/client";
-import { isoToDisplayDateTime } from "@/lib/date-picker";
+import { isoToDisplay, todayPersian } from "@/lib/date-picker";
 import { ToastProvider, useToast } from "@/components/client/toast";
 
 const fa = "fa-AF";
 
 const PAGE_SIZE = 20;
+const MIN_JALALI_YEAR = 1300;
+const MAX_JALALI_YEAR = 1500;
+const MAX_PERIOD_NUMBER = 12;
 
-const paymentMethods: { value: PaymentMethod; label: string }[] = [
-  { value: "cash", label: "نقدی" },
-  { value: "bank_transfer", label: "انتقال بانکی" },
-  { value: "card", label: "کارت" },
-  { value: "online", label: "آنلاین" },
-];
+const statusLabels: Record<ElectricityBillStatus, string> = {
+  PENDING: "پرداخت نشده",
+  PARTIAL: "پرداخت جزوی",
+  PAID: "پرداخت شده",
+  OVERDUE: "معوق",
+};
+
+const statusVariants: Record<
+  ElectricityBillStatus,
+  "secondary" | "outline" | "success" | "danger"
+> = {
+  PENDING: "secondary",
+  PARTIAL: "outline",
+  PAID: "success",
+  OVERDUE: "danger",
+};
 
 const emptyForm = {
   contractId: "",
-  amount: "",
-  accountId: "",
-  paymentMethod: "cash" as PaymentMethod,
-  receiptNumber: "",
+  meterId: "",
+  year: String(todayPersian().year),
+  periodNumber: "1",
+  currentReading: "",
+  totalAmount: "",
+  currencyId: "",
   notes: "",
 };
 
-export default function ElectricityPaymentsPage() {
+export default function ElectricityBillsPage() {
   return (
     <ToastProvider>
-      <ElectricityPaymentsPageContent />
+      <ElectricityBillsPageContent />
     </ToastProvider>
   );
 }
 
-function ElectricityPaymentsPageContent() {
+function ElectricityBillsPageContent() {
   const toast = useToast();
-  const [payments, setPayments] = useState<ElectricityPayment[]>([]);
+  const [bills, setBills] = useState<ElectricityBill[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
   const [page, setPage] = useState(1);
   const [reloadToken, setReloadToken] = useState(0);
-  const [meta, setMeta] = useState<ElectricityPaymentMeta>({
+  const [meta, setMeta] = useState<ElectricityBillMeta>({
     total: 0,
     page: 1,
     limit: PAGE_SIZE,
@@ -108,10 +123,10 @@ function ElectricityPaymentsPageContent() {
     hasPrevPage: false,
   });
 
+  const [meters, setMeters] = useState<Meter[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [currencies, setCurrencies] = useState<AddedCurrency[]>([]);
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -127,15 +142,15 @@ function ElectricityPaymentsPageContent() {
 
   useEffect(() => {
     let cancelled = false;
-    fetchElectricityPayments({ page, limit: PAGE_SIZE })
+    fetchElectricityBills({ page, limit: PAGE_SIZE })
       .then((result) => {
         if (cancelled) return;
-        setPayments(result.items);
+        setBills(result.items);
         setMeta(result.meta);
       })
       .catch((err) => {
         if (cancelled) return;
-        setError(extractApiErrorMessage(err, "خطا در دریافت پرداخت‌های برق"));
+        setError(extractApiErrorMessage(err, "خطا در دریافت قبض‌های برق"));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -148,17 +163,17 @@ function ElectricityPaymentsPageContent() {
   useEffect(() => {
     let cancelled = false;
     Promise.allSettled([
+      fetchMeters(),
       fetchContracts(),
       fetchShops(),
       fetchTenants(),
-      fetchBankAccounts(),
       fetchAddedCurrencies(),
-    ]).then(([contractResult, shopResult, tenantResult, accountResult, currencyResult]) => {
+    ]).then(([meterResult, contractResult, shopResult, tenantResult, currencyResult]) => {
       if (cancelled) return;
+      if (meterResult.status === "fulfilled") setMeters(meterResult.value);
       if (contractResult.status === "fulfilled") setContracts(contractResult.value);
       if (shopResult.status === "fulfilled") setShops(shopResult.value);
       if (tenantResult.status === "fulfilled") setTenants(tenantResult.value);
-      if (accountResult.status === "fulfilled") setAccounts(accountResult.value);
       if (currencyResult.status === "fulfilled") setCurrencies(currencyResult.value);
     });
     return () => {
@@ -184,11 +199,11 @@ function ElectricityPaymentsPageContent() {
     return m;
   }, [tenants]);
 
-  const accountMap = useMemo(() => {
-    const m = new Map<string, BankAccount>();
-    accounts.forEach((a) => m.set(a.id, a));
+  const meterMap = useMemo(() => {
+    const m = new Map<string, Meter>();
+    meters.forEach((x) => m.set(x.id, x));
     return m;
-  }, [accounts]);
+  }, [meters]);
 
   const currencyMap = useMemo(() => {
     const m = new Map<string, AddedCurrency>();
@@ -197,32 +212,36 @@ function ElectricityPaymentsPageContent() {
   }, [currencies]);
 
   const rows = useMemo(() => {
-    return payments.map((payment) => {
-      const shopNumber =
-        payment.shop?.shopNumber ?? shopMap.get(payment.shopId)?.shopNumber ?? "";
-      const tenantName = tenantMap.get(payment.tenantId)?.fullName ?? "";
-      return { payment, shopNumber, tenantName };
+    return bills.map((bill) => {
+      const contract = contractMap.get(bill.contractId);
+      const meter = meterMap.get(bill.meterId);
+      const shop = shopMap.get(contract?.shopId ?? bill.shopId);
+      return {
+        bill,
+        meter,
+        shopNumber: shop?.shopNumber ?? meter?.shopNumber ?? "",
+        tenantName: tenantMap.get(contract?.tenantId ?? bill.tenantId)?.fullName ?? "",
+      };
     });
-  }, [payments, shopMap, tenantMap]);
+  }, [bills, contractMap, shopMap, tenantMap, meterMap]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (q === "") return rows;
-    return rows.filter(({ payment, shopNumber, tenantName }) => {
+    return rows.filter(({ bill, shopNumber, tenantName, meter }) => {
       const searchText = [
         shopNumber,
         tenantName,
-        payment.receiptNumber ?? "",
-        payment.notes ?? "",
-        accountMap.get(payment.accountId)?.name ?? "",
+        meter?.serialNumber ?? "",
+        bill.notes ?? "",
+        bill.year,
+        bill.periodNumber,
       ]
         .join(" ")
         .toLowerCase();
       return searchText.includes(q);
     });
-  }, [rows, query, accountMap]);
-
-  const selectedAccount = form.accountId ? accountMap.get(form.accountId) : undefined;
+  }, [rows, query]);
 
   function goToPage(next: number) {
     if (next === page || next < 1 || next > meta.totalPages) return;
@@ -239,13 +258,28 @@ function ElectricityPaymentsPageContent() {
     return `دوکان ${shop?.shopNumber ?? "—"} — ${tenant?.fullName ?? "—"}`;
   }
 
-  function currencyLabel(currencyId: string): string {
-    const currency =
-      currencyMap.get(currencyId) ??
-      accounts.find((a) => a.currencyId === currencyId) ??
-      null;
-    if (currency && "code" in currency) return currency.code ?? "";
-    return currency?.currencyCode ?? "";
+  function getMeterLabel(meterId: string | null): string {
+    const meter = meterId ? meterMap.get(meterId) : undefined;
+    if (!meter) return meterId ? meterId.slice(0, 8) : "انتخاب میتر";
+    const parts = [meter.shopNumber ? `دوکان ${meter.shopNumber}` : "", meter.serialNumber];
+    return parts.filter(Boolean).join(" — ") || meterId?.slice(0, 8) || "";
+  }
+
+  const selectedMeter = form.meterId ? meterMap.get(form.meterId) : undefined;
+  const previousReading = selectedMeter?.lastReading ?? 0;
+  const currentReadingValue = form.currentReading.trim() === "" ? null : Number(form.currentReading);
+  const projectedConsumption =
+    currentReadingValue !== null && Number.isFinite(currentReadingValue)
+      ? Math.max(0, currentReadingValue - previousReading)
+      : null;
+
+  function handleMeterChange(meterId: string | null) {
+    const meter = meterId ? meterMap.get(meterId) : undefined;
+    setForm((f) => ({
+      ...f,
+      meterId: meterId ?? "",
+      currentReading: meter ? String(meter.lastReading) : f.currentReading,
+    }));
   }
 
   function openCreateDialog() {
@@ -262,42 +296,68 @@ function ElectricityPaymentsPageContent() {
       setFormError("قرارداد را انتخاب کنید");
       return;
     }
-    if (!form.accountId) {
-      setFormError("حساب دریافت را انتخاب کنید");
+    if (!form.meterId) {
+      setFormError("میتر را انتخاب کنید");
+      return;
+    }
+    if (!form.currencyId) {
+      setFormError("واحد پولی را انتخاب کنید");
       return;
     }
 
-    const contract = contractMap.get(form.contractId);
-    if (!contract) {
-      setFormError("قرارداد انتخاب شده معتبر نیست");
+    const year = Number(form.year);
+    if (form.year.trim() === "" || !Number.isInteger(year)) {
+      setFormError("سال باید یک عدد صحیح باشد");
+      return;
+    }
+    if (year < MIN_JALALI_YEAR || year > MAX_JALALI_YEAR) {
+      setFormError(`سال باید بین ${MIN_JALALI_YEAR} تا ${MAX_JALALI_YEAR} باشد`);
       return;
     }
 
-    const amount = Number(form.amount);
-    if (form.amount.trim() === "" || !Number.isFinite(amount) || amount <= 0) {
-      setFormError("مبلغ پرداخت باید عددی بزرگتر از صفر باشد");
+    const periodNumber = Number(form.periodNumber);
+    if (
+      form.periodNumber.trim() === "" ||
+      !Number.isInteger(periodNumber) ||
+      periodNumber < 1 ||
+      periodNumber > MAX_PERIOD_NUMBER
+    ) {
+      setFormError(`شماره دوره باید عددی بین ۱ تا ${MAX_PERIOD_NUMBER} باشد`);
+      return;
+    }
+
+    const reading = Number(form.currentReading);
+    if (form.currentReading.trim() === "" || !Number.isFinite(reading) || reading < 0) {
+      setFormError("قرائت فعلی باید عددی نامنفی باشد");
+      return;
+    }
+
+    const totalAmount = Number(form.totalAmount);
+    if (form.totalAmount.trim() === "" || !Number.isFinite(totalAmount) || totalAmount <= 0) {
+      setFormError("مبلغ کل باید عددی بزرگتر از صفر باشد");
       return;
     }
 
     setSaving(true);
     try {
-      await createElectricityPayment({
-        shopId: contract.shopId,
-        tenantId: contract.tenantId,
-        amount,
-        accountId: form.accountId,
-        paymentMethod: form.paymentMethod,
-        ...(form.receiptNumber.trim() ? { receiptNumber: form.receiptNumber.trim() } : {}),
+      await createElectricityBill({
+        contractId: form.contractId,
+        year,
+        periodNumber,
+        totalAmount,
+        meterId: form.meterId,
+        currentReading: reading,
+        currencyId: form.currencyId,
         ...(form.notes.trim() ? { notes: form.notes.trim() } : {}),
       });
-      toast.success("پرداخت برق جدید با موفقیت ثبت شد");
+      toast.success("قبض برق جدید با موفقیت ثبت شد");
       setDialogOpen(false);
       setLoading(true);
       setError(null);
       setPage(1);
       setReloadToken((t) => t + 1);
     } catch (err) {
-      toast.error(extractApiErrorMessage(err, "ثبت پرداخت برق ناموفق بود"));
+      toast.error(extractApiErrorMessage(err, "ثبت قبض برق ناموفق بود"));
     } finally {
       setSaving(false);
     }
@@ -306,21 +366,21 @@ function ElectricityPaymentsPageContent() {
   return (
     <div>
       <PageHeader
-        title="دریافت پول برق"
-        description="ثبت پرداخت‌های مشتریان بابت قبض‌های برق"
+        title="قبض‌های برق"
+        description="صدور و پیگیری قبض‌های برق دوکان‌ها بر اساس دوره‌های قرائت میتر"
         action={
           <Button onClick={openCreateDialog}>
             <Plus data-icon="inline-start" />
-            دریافت پول
+            قبض جدید
           </Button>
         }
       />
 
       <Card className="p-0">
-        <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border-b p-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-sm font-semibold text-foreground">
-              همه پرداخت‌ها
+              همه قبض‌ها
               {!loading && (
                 <span className="mr-1.5 text-xs font-normal text-muted-foreground">
                   ({meta.total.toLocaleString(fa)} مورد)
@@ -333,7 +393,7 @@ function ElectricityPaymentsPageContent() {
             <Search className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="جستجو در این صفحه..."
-              className="w-full pr-8 sm:w-56"
+              className="w-full pr-8 sm:w-52"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -344,18 +404,17 @@ function ElectricityPaymentsPageContent() {
           <TableHeader>
             <TableRow>
               <TableHead className="text-right">دوکان / مستأجر</TableHead>
+              <TableHead className="text-right">میتر</TableHead>
+              <TableHead className="text-right">دوره</TableHead>
+              <TableHead className="text-right">قرائت / مصرف</TableHead>
               <TableHead className="text-right">مبلغ</TableHead>
-              <TableHead className="text-right">روش پرداخت</TableHead>
-              <TableHead className="text-right">حساب</TableHead>
-              <TableHead className="text-right">شماره رسید</TableHead>
-              <TableHead className="text-right">تاریخ پرداخت</TableHead>
-              <TableHead className="text-right">تخصیص</TableHead>
+              <TableHead className="text-right">وضعیت</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-10">
+                <TableCell colSpan={6} className="py-10">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <Loader2 className="h-6 w-6 animate-spin" />
                     <span className="text-sm">در حال بارگذاری...</span>
@@ -364,7 +423,7 @@ function ElectricityPaymentsPageContent() {
               </TableRow>
             ) : error ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-10">
+                <TableCell colSpan={6} className="py-10">
                   <div className="flex flex-col items-center gap-3 text-center">
                     <p className="text-sm text-muted-foreground">{error}</p>
                     <Button variant="outline" size="sm" onClick={load}>
@@ -376,25 +435,17 @@ function ElectricityPaymentsPageContent() {
             ) : filtered.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={6}
                   className="py-10 text-center text-muted-foreground"
                 >
-                  پرداختی یافت نشد
+                  قبضی یافت نشد
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map(({ payment, shopNumber, tenantName }) => {
-                const account = accountMap.get(payment.accountId);
-                const code = currencyLabel(payment.currencyId);
-                const remaining = unallocatedAmount(payment);
-                const methodLabel =
-                  paymentMethods.find((m) => m.value === payment.paymentMethod)?.label ??
-                  payment.paymentMethod;
-
+              filtered.map(({ bill, meter, shopNumber, tenantName }) => {
+                const currency = currencyMap.get(bill.currencyId);
                 return (
-                  <TableRow
-                    key={payment.id || `${payment.shopId}:${payment.paymentDate}:${payment.amount}`}
-                  >
+                  <TableRow key={bill.id || `${bill.meterId}:${bill.year}:${bill.periodNumber}`}>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">
@@ -412,40 +463,69 @@ function ElectricityPaymentsPageContent() {
                     </TableCell>
 
                     <TableCell>
-                      <span className="tabular-nums text-foreground" dir="ltr">
-                        {payment.amount.toLocaleString(fa)} {code}
-                      </span>
-                    </TableCell>
-
-                    <TableCell className="text-muted-foreground">
-                      {methodLabel}
-                    </TableCell>
-
-                    <TableCell className="text-muted-foreground">
-                      {account?.name ?? "—"}
-                    </TableCell>
-
-                    <TableCell className="text-muted-foreground" dir="ltr">
-                      {payment.receiptNumber || "—"}
-                    </TableCell>
-
-                    <TableCell className="text-muted-foreground">
-                      {payment.paymentDate
-                        ? isoToDisplayDateTime(payment.paymentDate)
-                        : "—"}
+                      <div className="flex flex-col">
+                        <span className="text-foreground">
+                          {meter?.serialNumber || "—"}
+                        </span>
+                        {meter?.location && (
+                          <span className="text-xs text-muted-foreground">
+                            {meter.location}
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
 
                     <TableCell>
-                      {remaining > 0 ? (
-                        <div className="flex flex-col items-start gap-1">
-                          <Badge variant="danger">تخصیص نیافته</Badge>
+                      <div className="flex flex-col">
+                        <span className="text-foreground">
+                          سال {bill.year.toLocaleString(fa)} — دوره{" "}
+                          {bill.periodNumber.toLocaleString(fa)}
+                        </span>
+                        {bill.periodStart && bill.periodEnd && (
                           <span className="text-xs text-muted-foreground" dir="ltr">
-                            {remaining.toLocaleString(fa)} {code}
+                            {isoToDisplay(bill.periodStart)} →{" "}
+                            {isoToDisplay(bill.periodEnd)}
                           </span>
-                        </div>
-                      ) : (
-                        <Badge variant="success">تخصیص یافته</Badge>
-                      )}
+                        )}
+                      </div>
+                    </TableCell>
+
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="tabular-nums text-foreground" dir="ltr">
+                          {bill.previousReading.toLocaleString(fa)} →{" "}
+                          {bill.currentReading.toLocaleString(fa)}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          مصرف {bill.consumption.toLocaleString(fa)}
+                        </span>
+                      </div>
+                    </TableCell>
+
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="tabular-nums text-foreground" dir="ltr">
+                          {bill.totalAmount.toLocaleString(fa)}{" "}
+                          {currency?.code ?? ""}
+                        </span>
+                        {bill.paidAmount > 0 && (
+                          <span className="text-xs text-muted-foreground" dir="ltr">
+                            پرداخت {bill.paidAmount.toLocaleString(fa)} — باقیمانده{" "}
+                            {bill.remainingAmount.toLocaleString(fa)}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+
+                    <TableCell>
+                      <div className="flex flex-col items-start gap-1">
+                        <Badge variant={statusVariants[bill.status]}>
+                          {statusLabels[bill.status]}
+                        </Badge>
+                        {bill.isOpeningEntry && (
+                          <span className="text-xs text-muted-foreground">سند افتتاحیه</span>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -519,9 +599,9 @@ function ElectricityPaymentsPageContent() {
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-[700px]">
           <form onSubmit={handleSubmit} className="space-y-6">
             <DialogHeader className="text-right">
-              <DialogTitle>ثبت پرداخت برق جدید</DialogTitle>
+              <DialogTitle>افزودن قبض برق جدید</DialogTitle>
               <DialogDescription>
-                قرارداد و حساب دریافت را انتخاب کرده و مبلغ پرداخت را وارد کنید
+                قرارداد، میتر و دوره قرائت را انتخاب کرده و مبلغ قبض را وارد کنید
               </DialogDescription>
             </DialogHeader>
 
@@ -549,104 +629,145 @@ function ElectricityPaymentsPageContent() {
                 </div>
 
                 <div className="space-y-2 text-right">
-                  <Label htmlFor="electricity-payment-amount">مبلغ</Label>
+                  <Label>میتر</Label>
+                  <Select value={form.meterId} onValueChange={handleMeterChange}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="انتخاب میتر">
+                        {(value) => getMeterLabel(value)}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {meters.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {getMeterLabel(m.id)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+                <div className="space-y-2 text-right">
+                  <Label htmlFor="bill-year">سال</Label>
                   <Input
-                    id="electricity-payment-amount"
+                    id="bill-year"
                     type="number"
-                    step="any"
-                    min="0"
+                    step="1"
+                    min={MIN_JALALI_YEAR}
+                    max={MAX_JALALI_YEAR}
                     dir="ltr"
-                    placeholder="0"
-                    value={form.amount}
-                    onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+                    placeholder="1405"
+                    value={form.year}
+                    onChange={(e) => setForm((f) => ({ ...f, year: e.target.value }))}
                     required
                   />
-                  {selectedAccount?.currencyCode && (
-                    <p className="text-xs text-muted-foreground">
-                      واحد پولی این پرداخت از روی حساب انتخابی تعیین می‌شود:{" "}
-                      <span className="font-medium text-foreground">
-                        {selectedAccount.currencyCode}
-                      </span>
-                    </p>
-                  )}
+                </div>
+
+                <div className="space-y-2 text-right">
+                  <Label htmlFor="bill-period">شماره دوره</Label>
+                  <Input
+                    id="bill-period"
+                    type="number"
+                    step="1"
+                    min="1"
+                    max={MAX_PERIOD_NUMBER}
+                    dir="ltr"
+                    placeholder="1"
+                    value={form.periodNumber}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, periodNumber: e.target.value }))
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2 text-right">
+                  <Label htmlFor="bill-currency">واحد پولی</Label>
+                  <Select
+                    value={form.currencyId}
+                    onValueChange={(v) => setForm((f) => ({ ...f, currencyId: v ?? "" }))}
+                  >
+                    <SelectTrigger id="bill-currency" className="w-full">
+                      <SelectValue placeholder="انتخاب واحد">
+                        {(value) =>
+                          currencyMap.get(value)
+                            ? `${currencyMap.get(value)?.name} (${currencyMap.get(value)?.code})`
+                            : "انتخاب واحد پولی"
+                        }
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currencies.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name} ({c.code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <div className="space-y-2 text-right">
-                  <Label>حساب دریافت</Label>
-                  <Select
-                    value={form.accountId}
-                    onValueChange={(v) => setForm((f) => ({ ...f, accountId: v ?? "" }))}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="انتخاب حساب">
-                        {(value) => {
-                          const account = value ? accountMap.get(value) : undefined;
-                          return account
-                            ? `${account.name}${account.currencyCode ? ` (${account.currencyCode})` : ""}`
-                            : "انتخاب حساب";
-                        }}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {accounts.map((a) => (
-                        <SelectItem key={a.id} value={a.id}>
-                          {a.name}
-                          {a.currencyCode ? ` (${a.currencyCode})` : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="bill-current-reading">قرائت فعلی</Label>
+                  <Input
+                    id="bill-current-reading"
+                    type="number"
+                    step="any"
+                    min="0"
+                    dir="ltr"
+                    placeholder="0"
+                    value={form.currentReading}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, currentReading: e.target.value }))
+                    }
+                    required
+                  />
+                  {selectedMeter && (
+                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Zap className="h-3 w-3 shrink-0" />
+                      <span>
+                        قرائت قبلی میتر:{" "}
+                        <span className="tabular-nums" dir="ltr">
+                          {previousReading.toLocaleString(fa)}
+                        </span>
+                        {projectedConsumption !== null && (
+                          <>
+                            {" — "}
+                            مصرف این دوره:{" "}
+                            <span className="tabular-nums" dir="ltr">
+                              {projectedConsumption.toLocaleString(fa)}
+                            </span>
+                          </>
+                        )}
+                      </span>
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2 text-right">
-                  <Label>روش پرداخت</Label>
-                  <Select
-                    value={form.paymentMethod}
-                    onValueChange={(v) =>
-                      setForm((f) => ({
-                        ...f,
-                        paymentMethod: (v as PaymentMethod) ?? "cash",
-                      }))
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="انتخاب روش پرداخت">
-                        {(value) =>
-                          paymentMethods.find((m) => m.value === value)?.label ??
-                          "انتخاب روش پرداخت"
-                        }
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {paymentMethods.map((m) => (
-                        <SelectItem key={m.value} value={m.value}>
-                          {m.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="bill-total-amount">مبلغ کل قبض</Label>
+                  <Input
+                    id="bill-total-amount"
+                    type="number"
+                    step="any"
+                    min="0"
+                    dir="ltr"
+                    placeholder="0"
+                    value={form.totalAmount}
+                    onChange={(e) => setForm((f) => ({ ...f, totalAmount: e.target.value }))}
+                    required
+                  />
                 </div>
               </div>
 
               <div className="space-y-2 text-right">
-                <Label htmlFor="electricity-payment-receipt">شماره رسید</Label>
-                <Input
-                  id="electricity-payment-receipt"
-                  dir="ltr"
-                  placeholder="اختیاری — در صورت خالی بودن توسط سرور تولید می‌شود"
-                  value={form.receiptNumber}
-                  onChange={(e) => setForm((f) => ({ ...f, receiptNumber: e.target.value }))}
-                />
-              </div>
-
-              <div className="space-y-2 text-right">
-                <Label htmlFor="electricity-payment-notes">توضیحات</Label>
+                <Label htmlFor="bill-notes">توضیحات</Label>
                 <Textarea
-                  id="electricity-payment-notes"
+                  id="bill-notes"
                   rows={3}
-                  placeholder="توضیحات پرداخت"
+                  placeholder="توضیحات قبض"
                   value={form.notes}
                   onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
                 />
@@ -670,7 +791,7 @@ function ElectricityPaymentsPageContent() {
                 {saving && (
                   <Loader2 data-icon="inline-start" className="animate-spin" />
                 )}
-                {saving ? "در حال ذخیره..." : "ثبت پرداخت"}
+                {saving ? "در حال ذخیره..." : "افزودن قبض"}
               </Button>
             </DialogFooter>
           </form>

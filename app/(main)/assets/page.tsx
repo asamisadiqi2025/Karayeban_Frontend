@@ -1,19 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Search, Pencil, Trash2, Landmark, Loader2 } from "lucide-react";
-import DatePicker from "react-multi-date-picker";
-import persian from "react-date-object/calendars/persian";
-import gregorian from "react-date-object/calendars/gregorian";
-import DateObject from "react-date-object";
-import afghanLocale from "@/lib/date-picker/afghan-locale";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  Filter,
+  Landmark,
+  Loader2,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Search,
+  Trash2,
+} from "lucide-react";
 
 import { PageHeader } from "@/components/server/dashboard/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -32,19 +37,34 @@ import {
 } from "@/components/ui/dialog";
 import {
   Table,
-  TableHeader,
   TableBody,
-  TableRow,
-  TableHead,
   TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 
+import { isoToDisplay } from "@/lib/date-picker";
+import { ToastProvider, useToast } from "@/components/client/toast";
+import { PaginationBar } from "@/components/client/dashboard/pagination-bar";
 import {
-  fetchAssets,
+  AssetFormFields,
+  AssetStatusBadge,
+  DatePickerStyles,
+  emptyAssetForm,
+  toAssetBody,
+  validateAssetForm,
+  type AssetFormValues,
+} from "@/components/client/assets/asset-form";
+
+import {
+  fetchAssetsPaginated,
   createAsset,
   updateAsset,
   deleteAsset,
   type Asset,
+  type AssetStatus,
+  type PaginatedMeta,
 } from "@/services/asset.service";
 import {
   fetchAddedCurrencies,
@@ -52,39 +72,41 @@ import {
 } from "@/services/currency.service";
 import { fetchMyMarket } from "@/services/market.service";
 import { extractApiErrorMessage } from "@/services/client";
-import { ToastProvider, useToast } from "@/components/client/toast";
 
-function isoToPersianDate(iso: string): DateObject | undefined {
-  const gregorianDate = new DateObject({ calendar: gregorian, date: iso });
-  if (!gregorianDate.isValid) return undefined;
-  return gregorianDate.convert(persian);
-}
+const ALL = "all";
+const PAGE_SIZE = 20;
 
-function pad2(value: number): string {
-  return String(value).padStart(2, "0");
-}
-
-function isoToDisplay(iso: string): string {
-  const gregorianDate = new DateObject({ calendar: gregorian, date: iso });
-  if (!gregorianDate.isValid) return iso;
-  const p = gregorianDate.convert(persian);
-  return `${p.year}/${pad2(p.month.number)}/${pad2(p.day)}`;
-}
-
-function persianDateToIso(date: DateObject): string {
-  const g = new DateObject(date).convert(gregorian);
-  return `${g.year}-${pad2(g.month.number)}-${pad2(g.day)}`;
-}
-
-const emptyForm = {
-  name: "",
-  category: "",
-  purchasePrice: "",
-  currencyId: "",
-  lifespanYears: "",
-  purchaseDate: "",
-  details: "",
+const emptyMeta: PaginatedMeta = {
+  total: 0,
+  page: 1,
+  limit: PAGE_SIZE,
+  totalPages: 1,
+  hasNextPage: false,
+  hasPrevPage: false,
 };
+
+const statusFilterOptions: { value: string; label: string }[] = [
+  { value: ALL, label: "همه وضعیت‌ها" },
+  { value: "active", label: "فعال" },
+  { value: "disposed", label: "از رده خارج شده" },
+];
+
+function formatAmount(value: number): string {
+  return value.toLocaleString("fa-AF", { maximumFractionDigits: 2 });
+}
+
+function assetToForm(asset: Asset): AssetFormValues {
+  return {
+    name: asset.name,
+    category: asset.category,
+    purchasePrice: asset.purchasePrice === 0 ? "" : String(asset.purchasePrice),
+    currencyId: asset.currencyId,
+    lifespanYears: asset.lifespanYears === 0 ? "" : String(asset.lifespanYears),
+    purchaseDate: asset.purchaseDate,
+    status: asset.status,
+    details: asset.details,
+  };
+}
 
 export default function AssetsPage() {
   return (
@@ -96,116 +118,152 @@ export default function AssetsPage() {
 
 function AssetsPageContent() {
   const toast = useToast();
+  const router = useRouter();
+
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [meta, setMeta] = useState<PaginatedMeta>(emptyMeta);
   const [currencies, setCurrencies] = useState<AddedCurrency[]>([]);
-  const [marketId, setMarketId] = useState<string>("");
+  const [marketId, setMarketId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [category, setCategory] = useState("");
+  const [appliedCategory, setAppliedCategory] = useState("");
+  const [status, setStatus] = useState<string>(ALL);
+  const [page, setPage] = useState(1);
   const [query, setQuery] = useState("");
+  const [reloadToken, setReloadToken] = useState(0);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState<AssetFormValues>(emptyAssetForm);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [assetsResult, currenciesResult, marketResult] = await Promise.allSettled([
-        fetchAssets(),
-        fetchAddedCurrencies(),
-        fetchMyMarket(),
-      ]);
-      setAssets(
-        assetsResult.status === "fulfilled"
-          ? (Array.isArray(assetsResult.value) ? assetsResult.value : [])
-          : [],
-      );
-      setCurrencies(
-        currenciesResult.status === "fulfilled"
-          ? (Array.isArray(currenciesResult.value) ? currenciesResult.value : [])
-          : [],
-      );
-      if (marketResult.status === "fulfilled" && marketResult.value?.id) {
-        setMarketId(marketResult.value.id);
-      }
-      if (assetsResult.status === "rejected") {
-        setError(extractApiErrorMessage(assetsResult.reason, "خطا در دریافت دارایی‌ها"));
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  /**
+   * وضعیت loading در هندلرهای کاربر ست می‌شود، نه داخل افکت، تا
+   * react-hooks/set-state-in-effect رعایت شود.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    fetchAssetsPaginated({
+      category: appliedCategory || undefined,
+      status: status === ALL ? undefined : (status as AssetStatus),
+      page,
+      limit: PAGE_SIZE,
+    })
+      .then((result) => {
+        if (cancelled) return;
+        setAssets(result.items);
+        setMeta(result.meta);
+        setError(null);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setAssets([]);
+        setError(extractApiErrorMessage(err, "خطا در دریافت دارایی‌ها"));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [appliedCategory, status, page, reloadToken]);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.allSettled([fetchAssets(), fetchAddedCurrencies(), fetchMyMarket()]).then(
-      ([assetsResult, currenciesResult, marketResult]) => {
-        if (cancelled) return;
-        setAssets(
-          assetsResult.status === "fulfilled"
-            ? (Array.isArray(assetsResult.value) ? assetsResult.value : [])
-            : [],
-        );
-        setCurrencies(
-          currenciesResult.status === "fulfilled"
-            ? (Array.isArray(currenciesResult.value) ? currenciesResult.value : [])
-            : [],
-        );
-        if (marketResult.status === "fulfilled" && marketResult.value?.id) {
-          setMarketId(marketResult.value.id);
-        }
-        if (assetsResult.status === "rejected") {
-          setError(
-            extractApiErrorMessage(assetsResult.reason, "خطا در دریافت دارایی‌ها"),
-          );
-        }
-        setLoading(false);
-      },
-    );
+    fetchAddedCurrencies()
+      .then((result) => {
+        if (!cancelled) setCurrencies(Array.isArray(result) ? result : []);
+      })
+      .catch(() => {
+        if (!cancelled) setCurrencies([]);
+      });
+
+    fetchMyMarket()
+      .then((market) => {
+        if (!cancelled && market?.id) setMarketId(market.id);
+      })
+      .catch(() => {
+        if (!cancelled) setMarketId("");
+      });
+
     return () => {
       cancelled = true;
     };
   }, []);
 
   const currencyName = useCallback(
-    (id: string) => currencies.find((c) => c.id === id)?.name ?? "",
+    (asset: Asset) =>
+      asset.currency?.name ||
+      asset.currency?.code ||
+      currencies.find((c) => c.id === asset.currencyId)?.name ||
+      "",
     [currencies],
   );
 
-  const filtered = useMemo(() => {
-    return assets.filter((a) => {
-      const matchesQuery =
-        query.trim() === "" ||
-        a.name.includes(query) ||
-        a.category.includes(query);
-      return matchesQuery;
-    });
+  /** جستجو فقط ردیف‌های صفحه‌ی جاری را فیلتر می‌کند؛ برای کل نتایج از فیلتر دسته‌بندی استفاده کنید. */
+  const visible = useMemo(() => {
+    const q = query.trim();
+    if (!q) return assets;
+    return assets.filter(
+      (a) => a.name.includes(q) || a.category.includes(q) || (a.details ?? "").includes(q),
+    );
   }, [assets, query]);
+
+  const currentPage = meta.totalPages > 0 ? Math.min(page, meta.totalPages) : 1;
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+
+  function reload() {
+    setLoading(true);
+    setReloadToken((token) => token + 1);
+  }
+
+  function goToPage(next: number) {
+    setLoading(true);
+    setPage(Math.min(Math.max(1, next), Math.max(1, meta.totalPages)));
+  }
+
+  function applyCategoryFilter(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setAppliedCategory(category.trim());
+    setPage(1);
+  }
+
+  function changeStatus(value: string | null) {
+    setLoading(true);
+    setStatus(value ?? ALL);
+    setPage(1);
+  }
+
+  function clearFilters() {
+    setLoading(true);
+    setCategory("");
+    setAppliedCategory("");
+    setStatus(ALL);
+    setPage(1);
+  }
 
   function openCreateDialog() {
     setEditingId(null);
-    setForm(emptyForm);
+    setForm(emptyAssetForm);
     setFormError(null);
     setDialogOpen(true);
   }
 
   function openEditDialog(asset: Asset) {
     setEditingId(asset.id);
-    setForm({
-      name: asset.name,
-      category: asset.category,
-      purchasePrice: asset.purchasePrice === 0 ? "" : String(asset.purchasePrice),
-      currencyId: asset.currencyId,
-      lifespanYears: asset.lifespanYears === 0 ? "" : String(asset.lifespanYears),
-      purchaseDate: asset.purchaseDate,
-      details: asset.details,
-    });
+    setForm(assetToForm(asset));
     setFormError(null);
     setDialogOpen(true);
+  }
+
+  /** کلیک روی هر ردیف، صفحه‌ی جزییات همان دارایی را باز می‌کند. */
+  function openDetail(asset: Asset) {
+    router.push(`/assets/${asset.id}`);
   }
 
   async function handleDelete(asset: Asset) {
@@ -214,6 +272,7 @@ function AssetsPageContent() {
       await deleteAsset(asset.id);
       setAssets((prev) => prev.filter((a) => a.id !== asset.id));
       toast.success("دارایی با موفقیت حذف شد");
+      reload();
     } catch (err) {
       toast.error(extractApiErrorMessage(err, "حذف دارایی ناموفق بود"));
     } finally {
@@ -225,56 +284,29 @@ function AssetsPageContent() {
     e.preventDefault();
     setFormError(null);
 
-    if (!form.name.trim()) {
-      setFormError("نام دارایی الزامی است");
+    const validationError = validateAssetForm(form);
+    if (validationError) {
+      setFormError(validationError);
       return;
     }
-    if (!form.category.trim()) {
-      setFormError("دسته‌بندی الزامی است");
-      return;
-    }
-    const price = Number(form.purchasePrice);
-    if (form.purchasePrice.trim() === "" || !Number.isFinite(price) || price < 0) {
-      setFormError("قیمت خرید باید عددی مثبت باشد");
-      return;
-    }
-    if (!form.currencyId) {
-      setFormError("انتخاب واحد پولی الزامی است");
-      return;
-    }
-    const lifespan = Number(form.lifespanYears);
-    if (form.lifespanYears.trim() === "" || !Number.isFinite(lifespan) || lifespan <= 0) {
-      setFormError("عمر مفید باید عددی بزرگ‌تر از صفر باشد");
-      return;
-    }
-    if (!form.purchaseDate) {
-      setFormError("تاریخ خرید الزامی است");
-      return;
-    }
-
-    const basePayload = {
-      name: form.name.trim(),
-      category: form.category.trim(),
-      purchasePrice: price,
-      currencyId: form.currencyId,
-      lifespanYears: lifespan,
-      purchaseDate: form.purchaseDate,
-      details: form.details.trim(),
-    };
 
     setSaving(true);
     try {
       if (editingId) {
-        const updated = await updateAsset(editingId, basePayload);
+        const updated = await updateAsset(editingId, {
+          ...toAssetBody(form),
+          status: form.status,
+        });
         setAssets((prev) => prev.map((a) => (a.id === editingId ? updated : a)));
         toast.success("دارایی با موفقیت بروزرسانی شد");
       } else {
         const created = await createAsset({
-          ...basePayload,
+          ...toAssetBody(form),
           ...(marketId ? { marketId } : {}),
         });
         setAssets((prev) => [created, ...prev]);
         toast.success("دارایی جدید با موفقیت ثبت شد");
+        reload();
       }
       setDialogOpen(false);
     } catch (err) {
@@ -290,12 +322,76 @@ function AssetsPageContent() {
         title="دارایی‌های ثابت"
         description="مدیریت دارایی‌های ثابت سازمان"
         action={
-          <Button onClick={openCreateDialog}>
-            <Plus data-icon="inline-start" />
-            افزودن دارایی جدید
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href="/assets/summary" />}
+            >
+              <Landmark data-icon="inline-start" />
+              خلاصه دارایی‌ها
+            </Button>
+            <Button onClick={openCreateDialog}>
+              <Plus data-icon="inline-start" />
+              افزودن دارایی جدید
+            </Button>
+          </div>
         }
       />
+
+      {/* -------------------- Filters -------------------- */}
+      <Card className="mb-6 p-5">
+        <div className="mb-4 flex items-center gap-2">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold text-foreground">فیلترها</h2>
+        </div>
+
+        <form onSubmit={applyCategoryFilter}>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="filter-category">دسته‌بندی</Label>
+              <Input
+                id="filter-category"
+                placeholder="مثلاً: سخت‌افزار"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>وضعیت</Label>
+              <Select
+                value={status}
+                onValueChange={changeStatus}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="همه وضعیت‌ها">
+                    {(value) =>
+                      statusFilterOptions.find((o) => o.value === value)?.label ??
+                      "همه وضعیت‌ها"
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {statusFilterOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-end gap-2">
+              <Button type="submit">اعمال فیلتر</Button>
+              <Button type="button" variant="outline" onClick={clearFilters}>
+                <RefreshCw data-icon="inline-start" />
+                حذف فیلترها
+              </Button>
+            </div>
+          </div>
+        </form>
+      </Card>
 
       <Card className="p-0">
         <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -304,7 +400,7 @@ function AssetsPageContent() {
               همه دارایی‌ها
               {!loading && (
                 <span className="mr-1.5 text-xs font-normal text-muted-foreground">
-                  ({filtered.length.toLocaleString("fa-AF")} مورد)
+                  ({meta.total.toLocaleString("fa-AF")} مورد)
                 </span>
               )}
             </h2>
@@ -314,7 +410,7 @@ function AssetsPageContent() {
             <div className="relative">
               <Search className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="جستجوی نام یا دسته‌بندی..."
+                placeholder="جستجو در صفحه جاری..."
                 className="w-full pr-8 sm:w-64"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -328,17 +424,19 @@ function AssetsPageContent() {
             <TableRow>
               <TableHead>نام</TableHead>
               <TableHead>دسته‌بندی</TableHead>
+              <TableHead>وضعیت</TableHead>
               <TableHead>قیمت خرید</TableHead>
+              <TableHead>استهلاک سالانه</TableHead>
+              <TableHead>ارزش دفتری فعلی</TableHead>
               <TableHead>عمر مفید</TableHead>
               <TableHead>تاریخ خرید</TableHead>
-              <TableHead>جزییات</TableHead>
               <TableHead className="text-left">عملیات</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-10">
+                <TableCell colSpan={9} className="py-10">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <Loader2 className="h-6 w-6 animate-spin" />
                     <span className="text-sm">در حال بارگذاری...</span>
@@ -347,59 +445,74 @@ function AssetsPageContent() {
               </TableRow>
             ) : error ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-10">
+                <TableCell colSpan={9} className="py-10">
                   <div className="flex flex-col items-center gap-3 text-center">
                     <p className="text-sm text-muted-foreground">{error}</p>
-                    <Button variant="outline" size="sm" onClick={load}>
+                    <Button variant="outline" size="sm" onClick={reload}>
                       تلاش مجدد
                     </Button>
                   </div>
                 </TableCell>
               </TableRow>
-            ) : filtered.length === 0 ? (
+            ) : visible.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={9}
                   className="py-10 text-center text-muted-foreground"
                 >
                   دارایی یافت نشد
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((asset) => (
+              visible.map((asset) => (
                 <TableRow
                   key={asset.id}
                   className="cursor-pointer hover:bg-muted/40"
-                  onClick={() => openEditDialog(asset)}
+                  onClick={() => openDetail(asset)}
                 >
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">
                         <Landmark className="h-3.5 w-3.5 text-muted-foreground" />
                       </div>
-                      <span className="font-medium text-foreground">
-                        {asset.name}
-                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-foreground">
+                          {asset.name}
+                        </p>
+                        {asset.details && (
+                          <p className="max-w-[220px] truncate text-xs text-muted-foreground">
+                            {asset.details}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {asset.category || "—"}
                   </TableCell>
+                  <TableCell>
+                    <AssetStatusBadge status={asset.status} />
+                  </TableCell>
                   <TableCell dir="ltr" className="text-muted-foreground">
                     {asset.purchasePrice > 0
-                      ? `${asset.purchasePrice.toLocaleString("fa-IR")} ${currencyName(asset.currencyId)}`
+                      ? `${formatAmount(asset.purchasePrice)} ${currencyName(asset)}`
                       : "—"}
                   </TableCell>
                   <TableCell dir="ltr" className="text-muted-foreground">
-                    {asset.lifespanYears > 0
-                      ? `${asset.lifespanYears} سال`
+                    {asset.annualDepreciation > 0
+                      ? formatAmount(asset.annualDepreciation)
                       : "—"}
+                  </TableCell>
+                  <TableCell dir="ltr" className="font-medium text-foreground">
+                    {asset.currentBookValue > 0
+                      ? `${formatAmount(asset.currentBookValue)} ${currencyName(asset)}`
+                      : "—"}
+                  </TableCell>
+                  <TableCell dir="ltr" className="text-muted-foreground">
+                    {asset.lifespanYears > 0 ? `${asset.lifespanYears} سال` : "—"}
                   </TableCell>
                   <TableCell dir="ltr" className="text-muted-foreground">
                     {asset.purchaseDate ? isoToDisplay(asset.purchaseDate) : "—"}
-                  </TableCell>
-                  <TableCell className="max-w-[200px] truncate text-muted-foreground">
-                    {asset.details || "—"}
                   </TableCell>
                   <TableCell className="text-left">
                     <div className="flex items-center justify-end gap-1">
@@ -410,6 +523,7 @@ function AssetsPageContent() {
                           e.stopPropagation();
                           openEditDialog(asset);
                         }}
+                        aria-label="ویرایش"
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
@@ -422,6 +536,7 @@ function AssetsPageContent() {
                           e.stopPropagation();
                           handleDelete(asset);
                         }}
+                        aria-label="حذف"
                       >
                         {deletingId === asset.id ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -436,9 +551,21 @@ function AssetsPageContent() {
             )}
           </TableBody>
         </Table>
+
+        {meta.total > 0 && (
+          <PaginationBar
+            from={startIndex + 1}
+            to={Math.min(startIndex + PAGE_SIZE, meta.total)}
+            total={meta.total}
+            page={currentPage}
+            totalPages={meta.totalPages}
+            onPageChange={goToPage}
+            disabled={loading}
+          />
+        )}
       </Card>
 
-      {/* مودال ایجاد / ویرایش دارایی */}
+      {/* -------------------- ایجاد / ویرایش دارایی -------------------- */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
@@ -446,152 +573,28 @@ function AssetsPageContent() {
               {editingId ? "ویرایش دارایی" : "ایجاد دارایی جدید"}
             </DialogTitle>
             <DialogDescription>
-              اطلاعات دارایی را وارد کنید
+              {editingId
+                ? "اطلاعات دارایی را ویرایش کنید"
+                : "اطلاعات دارایی جدید را وارد کنید"}
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <div className="space-y-2 text-right">
-                <Label htmlFor="asset-name">نام دارایی</Label>
-                <Input
-                  id="asset-name"
-                  placeholder="مثلاً: کولر برقی"
-                  value={form.name}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, name: e.target.value }))
-                  }
-                  required
-                />
-              </div>
-
-              <div className="space-y-2 text-right">
-                <Label htmlFor="asset-category">دسته‌بندی</Label>
-                <Input
-                  id="asset-category"
-                  placeholder="مثلاً: سخت‌افزار"
-                  value={form.category}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, category: e.target.value }))
-                  }
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <div className="space-y-2 text-right">
-                <Label htmlFor="asset-price">قیمت خرید</Label>
-                <Input
-                  id="asset-price"
-                  type="number"
-                  step="any"
-                  min="0"
-                  dir="ltr"
-                  placeholder="0"
-                  value={form.purchasePrice}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, purchasePrice: e.target.value }))
-                  }
-                  required
-                />
-              </div>
-
-              <div className="space-y-2 text-right">
-                <Label htmlFor="asset-currency">واحد پولی</Label>
-                <Select
-                  value={form.currencyId}
-                  onValueChange={(v) =>
-                    setForm((f) => ({ ...f, currencyId: v ?? "" }))
-                  }
-                >
-                  <SelectTrigger id="asset-currency" className="w-full">
-                    <SelectValue placeholder="انتخاب واحد پولی">
-                      {(value) =>
-                        currencies.find((c) => c.id === value)?.name ??
-                        "انتخاب واحد پولی"
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {currencies.length === 0 ? (
-                      <SelectItem value="__none__" disabled>
-                        واحد پولی تعریف نشده است
-                      </SelectItem>
-                    ) : (
-                      currencies.map((currency) => (
-                        <SelectItem key={currency.id} value={currency.id}>
-                          {currency.name}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <div className="space-y-2 text-right">
-                <Label htmlFor="asset-lifespan">عمر مفید (سال)</Label>
-                <Input
-                  id="asset-lifespan"
-                  type="number"
-                  min="1"
-                  dir="ltr"
-                  placeholder="مثلاً: 5"
-                  value={form.lifespanYears}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, lifespanYears: e.target.value }))
-                  }
-                  required
-                />
-              </div>
-
-              <div className="space-y-2 text-right">
-                <Label htmlFor="asset-date">تاریخ خرید</Label>
-                <DatePicker
-                  calendar={persian}
-                  locale={afghanLocale}
-                  calendarPosition="bottom-right"
-                  containerClassName="w-full"
-                  placeholder="تاریخ خرید را انتخاب کنید"
-                  value={
-                    form.purchaseDate
-                      ? isoToPersianDate(form.purchaseDate)
-                      : undefined
-                  }
-                  onChange={(date) => {
-                    if (date?.isValid) {
-                      setForm((f) => ({
-                        ...f,
-                        purchaseDate: persianDateToIso(date),
-                      }));
-                    }
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2 text-right">
-              <Label htmlFor="asset-details">جزییات</Label>
-              <Textarea
-                id="asset-details"
-                rows={4}
-                placeholder="توضیحات تکمیلی..."
-                value={form.details}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, details: e.target.value }))
-                }
-              />
-            </div>
+          <form onSubmit={handleSubmit}>
+            <AssetFormFields
+              values={form}
+              onChange={setForm}
+              currencies={currencies}
+              showStatus={!!editingId}
+              idPrefix={editingId ? "edit-asset" : "create-asset"}
+            />
 
             {formError && (
-              <p className="whitespace-pre-line text-sm text-destructive">
+              <p className="mt-5 whitespace-pre-line text-sm text-destructive">
                 {formError}
               </p>
             )}
 
-            <DialogFooter className="gap-2">
+            <DialogFooter className="mt-6 gap-2">
               <DialogClose render={<Button variant="outline" type="button" />}>
                 انصراف
               </DialogClose>
@@ -599,28 +602,18 @@ function AssetsPageContent() {
                 {saving && (
                   <Loader2 data-icon="inline-start" className="animate-spin" />
                 )}
-                {saving ? "در حال ذخیره..." : editingId ? "ذخیره تغییرات" : "ثبت دارایی"}
+                {saving
+                  ? "در حال ذخیره..."
+                  : editingId
+                    ? "ذخیره تغییرات"
+                    : "ثبت دارایی"}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      <style jsx global>{`
-        .rmdp-input {
-          width: 100%;
-          height: 36px;
-          border-radius: 6px;
-          border: 1px solid hsl(var(--border));
-          background: transparent;
-          padding: 0 12px;
-          font-size: 14px;
-        }
-        .rmdp-input:focus {
-          outline: none;
-          border-color: hsl(var(--ring));
-        }
-      `}</style>
+      <DatePickerStyles />
     </div>
   );
 }
