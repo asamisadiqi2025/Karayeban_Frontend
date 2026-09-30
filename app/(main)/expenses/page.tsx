@@ -29,11 +29,12 @@ import {
 } from "@/components/ui/table";
 
 import {
-  fetchExpenses,
+  fetchExpensesPage,
   createExpense,
   updateExpense,
   deleteExpense,
   type Expense,
+  type ExpensesMeta,
 } from "@/services/expense.service";
 import { fetchExpenseCategories, type ExpenseCategory } from "@/services/expense-category.service";
 import { fetchAddedCurrencies, type AddedCurrency } from "@/services/currency.service";
@@ -59,6 +60,7 @@ export default function ExpensesPage() {
 function ExpensesPageContent() {
   const toast = useToast();
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [meta, setMeta] = useState<ExpensesMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -78,8 +80,9 @@ function ExpensesPageContent() {
     setLoading(true);
     setError(null);
     try {
-      const result = await fetchExpenses();
-      setExpenses(Array.isArray(result) ? result : []);
+      const { items, meta: pageMeta } = await fetchExpensesPage();
+      setExpenses(Array.isArray(items) ? items : []);
+      setMeta(pageMeta);
     } catch (err) {
       setError(extractApiErrorMessage(err, "خطا در دریافت مصارف"));
     } finally {
@@ -90,14 +93,15 @@ function ExpensesPageContent() {
   useEffect(() => {
     let cancelled = false;
     Promise.allSettled([
-      fetchExpenses(),
+      fetchExpensesPage(),
       fetchExpenseCategories(),
       fetchAddedCurrencies(),
       fetchBankAccounts(),
     ]).then(([expResult, catResult, curResult, accResult]) => {
       if (cancelled) return;
       if (expResult.status === "fulfilled") {
-        setExpenses(Array.isArray(expResult.value) ? expResult.value : []);
+        setExpenses(Array.isArray(expResult.value.items) ? expResult.value.items : []);
+        setMeta(expResult.value.meta);
       } else {
         setError(extractApiErrorMessage(expResult.reason, "خطا در دریافت مصارف"));
       }
@@ -116,17 +120,17 @@ function ExpensesPageContent() {
     );
   }, [expenses, query]);
 
+  const isSearching = query.trim() !== "";
+  const shownCount = isSearching
+    ? filtered.length
+    : (meta?.total ?? filtered.length);
+  const isTruncated = !isSearching && meta !== null && meta.total > expenses.length;
+
   const categoryMap = useMemo(() => {
     const m = new Map<string, string>();
     categories.forEach((c) => m.set(c.id, c.name));
     return m;
   }, [categories]);
-
-  const currencyMap = useMemo(() => {
-    const m = new Map<string, string>();
-    currencies.forEach((c) => m.set(c.id, `${c.name} (${c.code})`));
-    return m;
-  }, [currencies]);
 
   const accountMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -172,6 +176,7 @@ function ExpensesPageContent() {
     try {
       await deleteExpense(expense.id);
       setExpenses((prev) => prev.filter((e) => e.id !== expense.id));
+      setMeta((prev) => (prev ? { ...prev, total: Math.max(0, prev.total - 1) } : prev));
       toast.success("مصرف با موفقیت حذف شد");
     } catch (err) {
       toast.error(extractApiErrorMessage(err, "حذف مصرف ناموفق بود"));
@@ -199,15 +204,16 @@ function ExpensesPageContent() {
     setSaving(true);
     try {
       if (editingId) {
-        const updated = await updateExpense(editingId, payload);
-        setExpenses((prev) => prev.map((e) => (e.id === editingId ? updated : e)));
+        await updateExpense(editingId, payload);
         toast.success("مصرف با موفقیت بروزرسانی شد");
       } else {
-        const created = await createExpense(payload);
-        setExpenses((prev) => [created, ...prev]);
+        await createExpense(payload);
         toast.success("مصرف جدید با موفقیت ثبت شد");
       }
       setDialogOpen(false);
+      // پاسخ POST/PATCH رابطه‌های category/account را برنمی‌گرداند،
+      // بنابراین برای نمایش کامل باید دوباره از سرور خوانده شود
+      await load();
     } catch (err) {
       toast.error(extractApiErrorMessage(err, "ثبت مصرف ناموفق بود"));
     } finally {
@@ -235,10 +241,16 @@ function ExpensesPageContent() {
               همه مصارف
               {!loading && (
                 <span className="mr-1.5 text-xs font-normal text-muted-foreground">
-                  ({filtered.length.toLocaleString("fa-AF")} مورد)
+                  ({shownCount.toLocaleString("fa-AF")} مورد)
                 </span>
               )}
             </h2>
+            {isTruncated && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                فقط {expenses.length.toLocaleString("fa-AF")} مورد نخست نمایش
+                داده می‌شود
+              </p>
+            )}
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -258,8 +270,7 @@ function ExpensesPageContent() {
           <TableHeader>
             <TableRow>
               <TableHead className="text-right">توضیحات</TableHead>
-              <TableHead className="text-right">مبلغ</TableHead>
-              <TableHead className="text-right">واحد پولی</TableHead>
+              <TableHead className="w-32 text-right">مبلغ</TableHead>
               <TableHead className="text-right">دسته‌بندی</TableHead>
               <TableHead className="text-right">حساب</TableHead>
               <TableHead className="text-left">عملیات</TableHead>
@@ -268,7 +279,7 @@ function ExpensesPageContent() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-10">
+                <TableCell colSpan={5} className="py-10">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <Loader2 className="h-6 w-6 animate-spin" />
                     <span className="text-sm">در حال بارگذاری...</span>
@@ -277,7 +288,7 @@ function ExpensesPageContent() {
               </TableRow>
             ) : error ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-10">
+                <TableCell colSpan={5} className="py-10">
                   <div className="flex flex-col items-center gap-3 text-center">
                     <p className="text-sm text-muted-foreground">{error}</p>
                     <Button variant="outline" size="sm" onClick={load}>
@@ -289,7 +300,7 @@ function ExpensesPageContent() {
             ) : filtered.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={5}
                   className="py-10 text-center text-muted-foreground"
                 >
                   مصرفی یافت نشد
@@ -312,14 +323,26 @@ function ExpensesPageContent() {
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-muted-foreground" dir="ltr">
+                  <TableCell
+                    className="w-32 text-right text-muted-foreground tabular-nums"
+                    dir="ltr"
+                  >
                     {expense.amount.toLocaleString("fa-AF")}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {expense.currency?.code ?? currencyMap.get(expense.currencyId) ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {expense.category?.name ?? categoryMap.get(expense.categoryId) ?? "—"}
+                    {expense.category ? (
+                      expense.category.parent?.name ? (
+                        <span title={expense.category.name}>
+                          {expense.category.parent.name}
+                          <span className="mx-1 opacity-60">›</span>
+                          {expense.category.name}
+                        </span>
+                      ) : (
+                        expense.category.name
+                      )
+                    ) : (
+                      categoryMap.get(expense.categoryId) ?? "—"
+                    )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {expense.account?.name ?? accountMap.get(expense.accountId) ?? "—"}
@@ -390,22 +413,7 @@ function ExpensesPageContent() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2 text-right">
-                  <Label htmlFor="expense-amount">مبلغ</Label>
-                  <Input
-                    id="expense-amount"
-                    type="number"
-                    min="0"
-                    dir="ltr"
-                    placeholder="0"
-                    value={form.amount}
-                    onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-                    required
-                  />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <div className="space-y-2 text-right">
                   <Label>حساب</Label>
                   <Select value={form.accountId} onValueChange={(v) => setForm((f) => ({ ...f, accountId: v ?? "" }))}>
