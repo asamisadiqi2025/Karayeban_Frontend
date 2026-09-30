@@ -150,6 +150,10 @@ export const navSections: NavSection[] = [
             href: "/meters/electricity/billing-cycles",
           },
           {
+            label: "قبض‌های برق",
+            href: "/meters/electricity/bills",
+          },
+          {
             label: "دریافت پول برق",
             href: "/meters/electricity/payments",
           },
