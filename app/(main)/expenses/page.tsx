@@ -44,7 +44,6 @@ import { ToastProvider, useToast } from "@/components/client/toast";
 const emptyForm = {
   categoryId: "",
   amount: "",
-  currencyId: "",
   accountId: "",
   description: "",
 };
@@ -135,6 +134,20 @@ function ExpensesPageContent() {
     return m;
   }, [accounts]);
 
+  /** واحد پولی مصرف از روی حساب انتخاب‌شده تعیین می‌شود */
+  const selectedAccount = useMemo(
+    () => accounts.find((a) => a.id === form.accountId) ?? null,
+    [accounts, form.accountId],
+  );
+
+  const selectedAccountCurrencyCode = useMemo(() => {
+    if (!selectedAccount) return "";
+    if (selectedAccount.currencyCode) return selectedAccount.currencyCode;
+    return (
+      currencies.find((c) => c.id === selectedAccount.currencyId)?.code ?? ""
+    );
+  }, [selectedAccount, currencies]);
+
   function openCreateDialog() {
     setEditingId(null);
     setForm(emptyForm);
@@ -147,7 +160,6 @@ function ExpensesPageContent() {
     setForm({
       categoryId: expense.categoryId,
       amount: String(expense.amount),
-      currencyId: expense.currencyId,
       accountId: expense.accountId,
       description: expense.description,
     });
@@ -174,14 +186,12 @@ function ExpensesPageContent() {
 
     if (!form.categoryId) { setFormError("دسته‌بندی را انتخاب کنید"); return; }
     if (!form.amount || Number(form.amount) <= 0) { setFormError("مبلغ را وارد کنید"); return; }
-    if (!form.currencyId) { setFormError("واحد پولی را انتخاب کنید"); return; }
     if (!form.accountId) { setFormError("حساب را انتخاب کنید"); return; }
     if (!form.description.trim()) { setFormError("توضیحات الزامی است"); return; }
 
     const payload = {
       categoryId: form.categoryId,
       amount: Number(form.amount),
-      currencyId: form.currencyId,
       accountId: form.accountId,
       description: form.description.trim(),
     };
@@ -397,21 +407,6 @@ function ExpensesPageContent() {
 
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <div className="space-y-2 text-right">
-                  <Label>واحد پولی</Label>
-                  <Select value={form.currencyId} onValueChange={(v) => setForm((f) => ({ ...f, currencyId: v ?? "" }))}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="انتخاب واحد پولی">
-                        {(value) => currencies.find((c) => c.id === value) ? `${currencies.find((c) => c.id === value)!.name} (${currencies.find((c) => c.id === value)!.code})` : "انتخاب واحد پولی"}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {currencies.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.name} ({c.code})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2 text-right">
                   <Label>حساب</Label>
                   <Select value={form.accountId} onValueChange={(v) => setForm((f) => ({ ...f, accountId: v ?? "" }))}>
                     <SelectTrigger className="w-full">
@@ -421,10 +416,38 @@ function ExpensesPageContent() {
                     </SelectTrigger>
                     <SelectContent>
                       {accounts.map((a) => (
-                        <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.name}
+                          {a.currencyCode ? ` (${a.currencyCode})` : ""}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-2 text-right">
+                  <Label htmlFor="expense-amount">مبلغ</Label>
+                  <div className="relative">
+                    <Input
+                      id="expense-amount"
+                      type="number"
+                      min="0"
+                      step="any"
+                      dir="ltr"
+                      placeholder="0"
+                      className={selectedAccountCurrencyCode ? "pl-14" : undefined}
+                      value={form.amount}
+                      onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+                      required
+                    />
+                    {selectedAccountCurrencyCode && (
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                        {selectedAccountCurrencyCode}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    واحد پولی از روی حساب انتخابی تعیین می‌شود
+                  </p>
                 </div>
               </div>
 

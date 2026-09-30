@@ -3,7 +3,6 @@ import { apiClient } from "@/services/client";
 export interface CreateExpensePayload {
   categoryId: string;
   amount: number;
-  currencyId: string;
   accountId: string;
   description: string;
 }
@@ -11,7 +10,6 @@ export interface CreateExpensePayload {
 export interface UpdateExpensePayload {
   categoryId?: string;
   amount?: number;
-  currencyId?: string;
   accountId?: string;
   description?: string;
 }
@@ -94,6 +92,7 @@ export async function fetchExpense(id: string): Promise<Expense> {
 /**
  * ایجاد مصرف جدید
  * POST /expenses
+ * واحد پولی از روی حساب (accountId) در بک‌اند تعیین می‌شود و ارسال نمی‌گردد
  */
 export async function createExpense(
   payload: CreateExpensePayload,
@@ -101,7 +100,6 @@ export async function createExpense(
   const { data } = await apiClient.post("/expenses", {
     categoryId: payload.categoryId,
     amount: payload.amount,
-    currencyId: payload.currencyId,
     accountId: payload.accountId,
     description: payload.description,
   });
@@ -119,7 +117,6 @@ export async function updateExpense(
   const body: Record<string, unknown> = {};
   if (payload.categoryId !== undefined) body.categoryId = payload.categoryId;
   if (payload.amount !== undefined) body.amount = payload.amount;
-  if (payload.currencyId !== undefined) body.currencyId = payload.currencyId;
   if (payload.accountId !== undefined) body.accountId = payload.accountId;
   if (payload.description !== undefined) body.description = payload.description;
   const { data } = await apiClient.patch(`/expenses/${id}`, body);
