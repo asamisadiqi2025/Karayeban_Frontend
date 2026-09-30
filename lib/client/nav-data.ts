@@ -257,6 +257,16 @@ export const navSections: NavSection[] = [
         label: "دارایی‌های ثابت",
         href: "/assets",
         icon: Landmark,
+        submenu: [
+          {
+            label: "دارایی‌ها",
+            href: "/assets",
+          },
+          {
+            label: "خلاصه دارایی‌ها",
+            href: "/assets/summary",
+          },
+        ],
       },
 
       // گزارشات
