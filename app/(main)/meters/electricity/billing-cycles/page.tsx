@@ -46,7 +46,7 @@ import { ToastProvider, useToast } from "@/components/client/toast";
 
 const fa = "fa-AF";
 
-const PERIOD_OPTIONS = [1, 2, 3, 4, 6, 12];
+const PERIOD_OPTIONS = [1, 2];
 
 const MIN_JALALI_YEAR = 1300;
 const MAX_JALALI_YEAR = 1500;
@@ -54,10 +54,6 @@ const MAX_JALALI_YEAR = 1500;
 function durationLabel(months: number): string {
   if (months === 1) return "ماهانه";
   if (months === 2) return "هر ۲ ماه";
-  if (months === 3) return "هر ۳ ماه";
-  if (months === 4) return "هر ۴ ماه";
-  if (months === 6) return "هر ۶ ماه";
-  if (months === 12) return "هر ۱۲ ماه";
   return `هر ${months.toLocaleString(fa)} ماه`;
 }
 
