@@ -3,23 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import {
-  ArrowRight,
-  CalendarDays,
-  Coins,
-  Loader2,
-  Pencil,
-  Save,
-  Tag,
-  Trash2,
-  TrendingDown,
-  Wallet,
-  X,
-} from "lucide-react";
+import { ArrowRight, Loader2, Pencil, Save, Trash2, X } from "lucide-react";
 
 import { PageHeader } from "@/components/server/dashboard/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DetailTable, type DetailRow } from "@/components/ui/detail-table";
 import {
   Table,
   TableBody,
@@ -64,43 +53,6 @@ function eventCell(event: DepreciationEvent, keys: string[]): string {
     return String(value);
   }
   return "—";
-}
-
-/**
- * جهت نمایش مقدار کارت.
- *
- * مقدارهای متنی فارسی (مثل «۸ میزان ۱۴۰۵ — ساعت ۱۱:۱۰» یا «۵ سال») باید در
- * پایه‌ی راست‌به‌چپ چیده شوند، وگرنه بخش‌های راست‌به‌چپ جابه‌جا می‌شوند.
- * فقط مقدارهای کاملاً عددی/لاتین (مثل «۹٬۰۰۰ USD») به پایه‌ی چپ‌به‌راست نیاز دارند.
- */
-function valueDir(value: React.ReactNode): "rtl" | "ltr" {
-  if (typeof value !== "string") return "rtl";
-  return /[\u0600-\u06FF]/.test(value) ? "rtl" : "ltr";
-}
-
-function InfoCard({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: React.ReactNode;
-}) {
-  return (
-    <Card className="p-4">
-      <div className="mb-2 flex items-center gap-2 text-muted-foreground">
-        {icon}
-        <span className="text-xs font-semibold">{label}</span>
-      </div>
-      <div
-        dir={valueDir(value)}
-        className="text-right text-sm font-medium text-foreground"
-      >
-        {value}
-      </div>
-    </Card>
-  );
 }
 
 export default function AssetDetailPage() {
@@ -271,7 +223,55 @@ function AssetDetailContent() {
   }
 
   const currencyLabel = asset.currency?.name || asset.currency?.code || "—";
+  const currencyCode = asset.currency?.code ?? "";
   const totalDepreciation = asset.purchasePrice - asset.currentBookValue;
+
+  const detailRows: DetailRow[] = [
+    { label: "نام دارایی", value: asset.name },
+    { label: "دسته‌بندی", value: asset.category || "—" },
+    {
+      label: "واحد پولی",
+      value: asset.currency
+        ? `${asset.currency.name} (${asset.currency.code})`
+        : currencyLabel,
+    },
+    { label: "وضعیت", value: <AssetStatusBadge status={asset.status} /> },
+    {
+      label: "قیمت خرید",
+      value: `${formatAmount(asset.purchasePrice)} ${currencyCode}`,
+    },
+    {
+      label: "استهلاک سالانه",
+      value: `${formatAmount(asset.annualDepreciation)} ${currencyCode}`,
+    },
+    {
+      label: "ارزش دفتری فعلی",
+      value: `${formatAmount(asset.currentBookValue)} ${currencyCode}`,
+    },
+    {
+      label: "استهلاک تجمعی",
+      value:
+        totalDepreciation > 0
+          ? `${formatAmount(totalDepreciation)} ${currencyCode}`
+          : "—",
+    },
+    {
+      label: "عمر مفید",
+      value: asset.lifespanYears > 0 ? `${asset.lifespanYears} سال` : "—",
+    },
+    {
+      label: "تاریخ خرید",
+      value: asset.purchaseDate ? isoToDisplay(asset.purchaseDate) : "—",
+    },
+    {
+      label: "تاریخ ایجاد",
+      value: asset.createdAt ? isoToDisplayDateTime(asset.createdAt) : "—",
+    },
+    {
+      label: "آخرین بروزرسانی",
+      value: asset.updatedAt ? isoToDisplayDateTime(asset.updatedAt) : "—",
+    },
+  ];
 
   return (
     <div>
@@ -337,78 +337,9 @@ function AssetDetailContent() {
         </Card>
       ) : (
         <>
-          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <InfoCard icon={<Tag className="h-4 w-4" />} label="نام دارایی" value={asset.name} />
-            <InfoCard
-              icon={<Tag className="h-4 w-4" />}
-              label="دسته‌بندی"
-              value={asset.category || "—"}
-            />
-            <InfoCard
-              icon={<Wallet className="h-4 w-4" />}
-              label="واحد پولی"
-              value={
-                asset.currency
-                  ? `${asset.currency.name} (${asset.currency.code})`
-                  : currencyLabel
-              }
-            />
-            <InfoCard
-              icon={<Coins className="h-4 w-4" />}
-              label="وضعیت"
-              value={<AssetStatusBadge status={asset.status} />}
-            />
-          </div>
-
-          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <InfoCard
-              icon={<Coins className="h-4 w-4" />}
-              label="قیمت خرید"
-              value={`${formatAmount(asset.purchasePrice)} ${asset.currency?.code ?? ""}`}
-            />
-            <InfoCard
-              icon={<TrendingDown className="h-4 w-4" />}
-              label="استهلاک سالانه"
-              value={`${formatAmount(asset.annualDepreciation)} ${asset.currency?.code ?? ""}`}
-            />
-            <InfoCard
-              icon={<Wallet className="h-4 w-4" />}
-              label="ارزش دفتری فعلی"
-              value={`${formatAmount(asset.currentBookValue)} ${asset.currency?.code ?? ""}`}
-            />
-            <InfoCard
-              icon={<TrendingDown className="h-4 w-4" />}
-              label="استهلاک تجمعی"
-              value={
-                totalDepreciation > 0
-                  ? `${formatAmount(totalDepreciation)} ${asset.currency?.code ?? ""}`
-                  : "—"
-              }
-            />
-          </div>
-
-          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <InfoCard
-              icon={<CalendarDays className="h-4 w-4" />}
-              label="عمر مفید"
-              value={asset.lifespanYears > 0 ? `${asset.lifespanYears} سال` : "—"}
-            />
-            <InfoCard
-              icon={<CalendarDays className="h-4 w-4" />}
-              label="تاریخ خرید"
-              value={asset.purchaseDate ? isoToDisplay(asset.purchaseDate) : "—"}
-            />
-            <InfoCard
-              icon={<CalendarDays className="h-4 w-4" />}
-              label="تاریخ ایجاد"
-              value={asset.createdAt ? isoToDisplayDateTime(asset.createdAt) : "—"}
-            />
-            <InfoCard
-              icon={<CalendarDays className="h-4 w-4" />}
-              label="آخرین بروزرسانی"
-              value={asset.updatedAt ? isoToDisplayDateTime(asset.updatedAt) : "—"}
-            />
-          </div>
+          <Card className="mb-6 p-0">
+            <DetailTable caption="مشخصات دارایی" rows={detailRows} />
+          </Card>
 
           {asset.details && (
             <Card className="mb-6 p-4">

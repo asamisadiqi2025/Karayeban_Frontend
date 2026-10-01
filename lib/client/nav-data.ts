@@ -319,6 +319,20 @@ export const navSections: NavSection[] = [
         ],
       },
 
+       // مدیریت کاربر
+      {
+        label: "مدیریت کاربر",
+        href: "/users",
+        icon: Users,
+        submenu: [
+          {
+            label: "کاربران",
+            href: "/users",
+          },
+       
+        ],
+      },
+
       // اعلان‌ها
       {
         label: "اعلان‌ها",

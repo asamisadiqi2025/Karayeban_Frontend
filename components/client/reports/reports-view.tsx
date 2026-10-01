@@ -104,13 +104,6 @@ interface Filters {
 
 const ALL = "all";
 
-const presets: { value: RangePreset; label: string }[] = [
-  { value: "thisMonth", label: "ماه جاری" },
-  { value: "lastMonth", label: "ماه گذشته" },
-  { value: "thisYear", label: "سال جاری" },
-  { value: "lastYear", label: "سال گذشته" },
-  { value: "custom", label: "دلخواه" },
-];
 
 function presetRange(preset: RangePreset): { from: string; to: string } | null {
   switch (preset) {
@@ -469,6 +462,35 @@ function ReportsContent({ report }: { report: ReportKey }) {
     [currencyFilter],
   );
 
+  const currencyOptions = useMemo(
+    () => collectCurrencies(summary, expenses, balances, rentPerf, elecPerf, aging, movement),
+    [summary, expenses, balances, rentPerf, elecPerf, aging, movement],
+  );
+
+  /**
+   * Base UI فقط وقتی برچسبِ مقدار انتخاب‌شده را از prop ‏`items` می‌خواند که آن
+   * prop داده شده باشد؛ در غیر این صورت خودِ مقدار (یعنی id) را نشان می‌دهد.
+   * برای همین برچسب‌ها را اینجا از روی مقدار می‌سازیم.
+   */
+  function currencyOptionLabel(value: unknown): string {
+    const key = String(value);
+    if (key === ALL) return "همه واحدهای پولی";
+    return currencyOptions.find((c) => c.currencyId === key)?.currencyCode ?? key;
+  }
+
+  function shopOptionLabel(value: unknown): string {
+    const key = String(value);
+    if (key === ALL) return "همه دوکان‌ها";
+    const shop = shops.find((s) => s.id === key);
+    return shop ? `دوکان ${shop.shopNumber}` : "همه دوکان‌ها";
+  }
+
+  function warehouseOptionLabel(value: unknown): string {
+    const key = String(value);
+    if (key === ALL) return "همه گدام‌ها";
+    return warehouses.find((w) => w.id === key)?.name ?? "همه گدام‌ها";
+  }
+
   const shopLabel = useMemo(() => {
     if (applied.shopId === ALL) return "همه دوکان‌ها";
     return shops.find((s) => s.id === applied.shopId)?.shopNumber ?? "همه دوکان‌ها";
@@ -578,17 +600,17 @@ function ReportsContent({ report }: { report: ReportKey }) {
                 onValueChange={(v) => setFilters((f) => ({ ...f, currencyId: v ?? ALL }))}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="همه واحدهای پولی" />
+                  <SelectValue placeholder="همه واحدهای پولی">
+                    {(value) => currencyOptionLabel(value)}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={ALL}>همه واحدهای پولی</SelectItem>
-                  {collectCurrencies(summary, expenses, balances, rentPerf, elecPerf, aging, movement).map(
-                    (c) => (
-                      <SelectItem key={c.currencyId} value={c.currencyId}>
-                        {c.currencyCode}
-                      </SelectItem>
-                    ),
-                  )}
+                  {currencyOptions.map((c) => (
+                    <SelectItem key={c.currencyId} value={c.currencyId}>
+                      {c.currencyCode}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -602,7 +624,9 @@ function ReportsContent({ report }: { report: ReportKey }) {
                 onValueChange={(v) => setFilters((f) => ({ ...f, shopId: v ?? ALL }))}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="همه دوکان‌ها" />
+                  <SelectValue placeholder="همه دوکان‌ها">
+                    {(value) => shopOptionLabel(value)}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={ALL}>همه دوکان‌ها</SelectItem>
@@ -624,7 +648,9 @@ function ReportsContent({ report }: { report: ReportKey }) {
                 onValueChange={(v) => setFilters((f) => ({ ...f, warehouseId: v ?? ALL }))}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="همه گدام‌ها" />
+                  <SelectValue placeholder="همه گدام‌ها">
+                    {(value) => warehouseOptionLabel(value)}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={ALL}>همه گدام‌ها</SelectItem>
@@ -640,23 +666,7 @@ function ReportsContent({ report }: { report: ReportKey }) {
         </div>
 
         <div className="mt-5 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-          {useRange ? (
-            <div className="flex flex-wrap items-center gap-1.5">
-              {presets.map((p) => (
-                <Button
-                  key={p.value}
-                  variant={preset === p.value ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => applyPreset(p.value)}
-                  disabled={loading}
-                >
-                  {p.label}
-                </Button>
-              ))}
-            </div>
-          ) : (
-            <div />
-          )}
+     
 
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={resetFilters} disabled={loading}>
