@@ -47,7 +47,7 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { createMarket, updateMarketProfile, fetchMyMarket } from "@/services/market.service";
+import { createMarket, updateMarketProfile, fetchMyMarket, uploadMarketLogo, resolveMediaUrl } from "@/services/market.service";
 import {
   fetchCurrencyCatalog,
   fetchAddedCurrencies,
@@ -88,6 +88,9 @@ export default function MarketProfilePage() {
   const [form, setForm] = useState<MarketProfileForm>(initialForm);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  /** آدرس لوگوی ذخیره‌شده روی سرور — تا با ذخیره‌ی بعدی پاک نشود */
+  const [savedLogo, setSavedLogo] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -106,7 +109,7 @@ export default function MarketProfilePage() {
   function validate(): boolean {
     const errors: Record<string, string> = {};
 
-    if (!logoFile && !logoPreview) {
+    if (!logoFile && !savedLogo) {
       errors.logo = "انتخاب لوگوی مارکت الزامی است";
     }
 
@@ -173,6 +176,7 @@ export default function MarketProfilePage() {
           id: m.baseCurrencyId ?? null,
           code: m.baseCurrencyCode ?? null,
         });
+        setSavedLogo(m.logo ?? null);
         setForm((prev) => ({
           ...prev,
           nameFa: m.name ?? "",
@@ -221,6 +225,12 @@ export default function MarketProfilePage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!file.type.startsWith("image/")) {
+      setFieldErrors((prev) => ({ ...prev, logo: "فقط فایل تصویری مجاز است" }));
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
     setLogoFile(file);
     setSaved(false);
     const url = URL.createObjectURL(file);
@@ -235,6 +245,7 @@ export default function MarketProfilePage() {
 
   function handleRemoveLogo() {
     setLogoFile(null);
+    setSavedLogo(null);
     setLogoPreview((prev) => {
       if (prev) URL.revokeObjectURL(prev);
       return null;
@@ -252,10 +263,22 @@ export default function MarketProfilePage() {
     setError(null);
 
     try {
+      // اول لوگو را روی سرور آپلود می‌کنیم، بعد آدرسش را همراه بقیه‌ی فیلدها می‌فرستیم
+      let logoUrl = savedLogo ?? "";
+      if (logoFile) {
+        setUploadingLogo(true);
+        try {
+          logoUrl = await uploadMarketLogo(logoFile);
+          setSavedLogo(logoUrl);
+        } finally {
+          setUploadingLogo(false);
+        }
+      }
+
       const common = {
         name: form.nameFa,
         address: form.address,
-        logo: "",
+        logo: logoUrl,
         phone: form.phone,
         email: form.email,
       };
@@ -263,7 +286,6 @@ export default function MarketProfilePage() {
       if (marketId) {
         await updateMarketProfile(marketId, {
           ...common,
-          baseCurrency: baseCurrencyValue,
           details: form.details,
         });
         setSaved(true);
@@ -360,6 +382,9 @@ export default function MarketProfilePage() {
 
   const isAdded = (code: string) => addedCodes.includes(code);
 
+  /** پیش‌نمایش فایل تازه انتخاب‌شده، وگرنه لوگوی ذخیره‌شده روی سرور */
+  const logoSrc = logoPreview ?? resolveMediaUrl(savedLogo);
+
   // Modal pagination
   const catalogTotalPages = Math.max(1, Math.ceil(catalogItems.length / catalogPageSize));
   const catalogStart = (catalogPage - 1) * catalogPageSize;
@@ -382,10 +407,10 @@ export default function MarketProfilePage() {
           <CardContent>
             <div className="flex items-center gap-4">
               <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-dashed border-border bg-muted">
-                {logoPreview ? (
+                {logoSrc ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={logoPreview}
+                    src={logoSrc}
                     alt="لوگوی مارکت"
                     className="h-full w-full object-cover"
                   />
@@ -398,12 +423,13 @@ export default function MarketProfilePage() {
                 <Button
                   type="button"
                   variant="outline"
+                  disabled={uploadingLogo}
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <ImagePlus data-icon="inline-start" />
-                  {logoPreview ? "تغییر لوگو" : "انتخاب لوگو"}
+                  {logoSrc ? "تغییر لوگو" : "انتخاب لوگو"}
                 </Button>
-                {logoPreview && (
+                {logoSrc && (
                   <Button type="button" variant="ghost" onClick={handleRemoveLogo}>
                     <Trash2 data-icon="inline-start" />
                     حذف
@@ -556,7 +582,8 @@ export default function MarketProfilePage() {
                   <div className="relative flex-1">
                     <Wallet className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <select
-                      className={`w-full rounded-md border border-input bg-background px-3 py-2 pr-9 text-sm ${fieldErrors.baseCurrency ? "border-destructive" : ""}`}
+                      disabled={Boolean(marketId)}
+                      className={`w-full rounded-md border border-input bg-background px-3 py-2 pr-9 text-sm disabled:cursor-not-allowed disabled:opacity-60 ${fieldErrors.baseCurrency ? "border-destructive" : ""}`}
                       value={baseCurrencyValue}
                       onChange={(e) => {
                         setForm((prev) => ({ ...prev, baseCurrency: e.target.value }));
@@ -579,6 +606,11 @@ export default function MarketProfilePage() {
                   </div>
                
                 </div>
+                {marketId && (
+                  <p className="text-xs text-muted-foreground">
+                    ارز پایه بعد از تنظیم اولیه قابل تغییر نیست
+                  </p>
+                )}
                 {fieldErrors.baseCurrency && (
                   <p className="text-xs text-destructive">{fieldErrors.baseCurrency}</p>
                 )}
@@ -633,7 +665,11 @@ export default function MarketProfilePage() {
         <div className="flex items-center justify-end gap-3">
           <Button type="submit" disabled={loading}>
             {loading && <Loader2 data-icon="inline-start" className="animate-spin" />}
-            {loading ? "در حال ذخیره..." : "ذخیره تغییرات"}
+            {uploadingLogo
+              ? "در حال آپلود لوگو..."
+              : loading
+                ? "در حال ذخیره..."
+                : "ذخیره تغییرات"}
           </Button>
         </div>
       </form>
