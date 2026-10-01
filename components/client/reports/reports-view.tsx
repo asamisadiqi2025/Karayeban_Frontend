@@ -640,7 +640,7 @@ function ReportsContent({ report }: { report: ReportKey }) {
         </div>
 
         <div className="mt-5 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-          {useRange ? (
+          {/* {useRange ? (
             <div className="flex flex-wrap items-center gap-1.5">
               {presets.map((p) => (
                 <Button
@@ -656,7 +656,7 @@ function ReportsContent({ report }: { report: ReportKey }) {
             </div>
           ) : (
             <div />
-          )}
+          )} */}
 
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={resetFilters} disabled={loading}>
