@@ -77,8 +77,8 @@ export interface User {
   // grandfatherName: string | null;
   phone: string | null;
   // tazkiraNumber: string | null;
-  address: string | null;
-  profilePhoto: string | null;
+  address?: string | null;
+  profilePhoto?: string | null;
   grantedPermissions: string[] | null;
   extraPermissions: string[] | null;
   deniedPermissions: string[] | null;
@@ -218,12 +218,12 @@ function normalizeUser(raw: RawUser): User {
     role: raw.role ?? raw.roleName ?? raw.role_name ?? "USER",
     customRoleId: raw.customRoleId ?? raw.custom_role_id ?? null,
     marketId: raw.marketId ?? raw.market_id ?? null,
-    fatherName: raw.fatherName ?? raw.father_name ?? null,
-    grandfatherName: raw.grandfatherName ?? raw.grandfather_name ?? null,
+    // fatherName: raw.fatherName ?? raw.father_name ?? null,
+    // grandfatherName: raw.grandfatherName ?? raw.grandfather_name ?? null,
     phone: raw.phone ?? raw.mobile ?? null,
-    tazkiraNumber: raw.tazkiraNumber ?? raw.tazkira_number ?? null,
-    address: raw.address ?? null,
-    profilePhoto: raw.profilePhoto ?? raw.profile_photo ?? null,
+    // tazkiraNumber: raw.tazkiraNumber ?? raw.tazkira_number ?? null,
+    // address: raw.address ?? null,
+    // profilePhoto: raw.profilePhoto ?? raw.profile_photo ?? null,
     grantedPermissions:
       toStringList(raw.grantedPermissions ?? raw.granted_permissions),
     extraPermissions: toStringList(raw.extraPermissions ?? raw.extra_permissions),

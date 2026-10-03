@@ -146,12 +146,16 @@ export const navSections: NavSection[] = [
             href: "/meters/electricity",
           },
           {
-            label: "مدت زمان قرائت میتر",
+            label: "تعین دروه میتر خوانی",
             href: "/meters/electricity/billing-cycles",
           },
           {
-            label: "قبض‌های برق",
-            href: "/meters/electricity/bills",
+            label: "یک بیل برق",
+            href: "/meters/electricity/bills/one",
+          },
+          {
+            label: "چندین بیل برق",
+            href: "/meters/electricity/bills/bulk",
           },
           {
             label: "دریافت پول برق",
@@ -354,6 +358,10 @@ export const navSections: NavSection[] = [
           {
             label: "دالر به واحد پولی",
             href: "/settings/currencies/adtocurrency",
+          },
+          {
+            label: "آپدیت کردن نرخ ارز ها",
+            href: "/settings/currencies/updatecurrencyrates",
           },
           {
             label: "طراحی قرارداد",
