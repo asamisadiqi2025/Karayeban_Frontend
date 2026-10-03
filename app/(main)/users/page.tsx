@@ -104,10 +104,10 @@ function userToForm(user: User): UserFormValues {
     password: "",
     role: user.role,
     phone: user.phone ?? "",
-    fatherName: user.fatherName ?? "",
-    grandfatherName: user.grandfatherName ?? "",
-    tazkiraNumber: user.tazkiraNumber ?? "",
-    address: user.address ?? "",
+    // fatherName: user.fatherName ?? "",
+    // grandfatherName: user.grandfatherName ?? "",
+    // tazkiraNumber: user.tazkiraNumber ?? "",
+    // address: user.address ?? "",
     isActive: user.isActive,
   };
 }
